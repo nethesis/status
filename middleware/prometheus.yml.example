@@ -1,0 +1,45 @@
+prometheus_storage_retention: "90d"
+prometheus_web_external_url: '/prometheus'
+
+# Example Prometheus targets configuration with status page labels
+# Copy this file to prometheus.yml and configure with your infrastructure
+# cp middleware/prometheus.yml.example middleware/prometheus.yml
+
+prometheus_targets:
+  node:
+    # Node exporter targets
+    - targets:
+        - "192.168.1.10:9100"
+        - "192.168.1.11:9100"
+      labels:
+        env: production
+        system: web
+        service: frontend
+        status_page_component: "Web Server"      # Required: Visible component name
+        status_page_alert: true                  # Required: Enable status page monitoring
+        status_page_critical_target: false       # Optional: Mark as critical (default: false)
+    
+    - targets:
+        - "192.168.1.20:9100"
+      labels:
+        env: production
+        system: database
+        service: postgres
+        status_page_component: "Database"
+        status_page_alert: true
+        status_page_critical_target: true        # Critical target forces major outage
+    
+    - targets:
+        - "192.168.1.30:9100"
+      labels:
+        env: production
+        system: backend
+        service: api
+        status_page_component: "Backend, API Services"  # Multiple components supported
+        status_page_alert: true
+
+  # Add more target groups as needed
+  # blackbox:
+  #   - targets: ...
+  # mysql:
+  #   - targets: ...

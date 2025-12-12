@@ -1,0 +1,29 @@
+{
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite build --watch",
+        "build": "vite build",
+        "fix:prettier": "prettier --write resources/js/**/*.js"
+    },
+    "devDependencies": {
+        "@alpinejs/anchor": "^3.13.3",
+        "@alpinejs/collapse": "^3.13.3",
+        "@alpinejs/focus": "^3.13.3",
+        "@alpinejs/ui": "^3.13.3-beta.4",
+        "@tailwindcss/forms": "^0.5.4",
+        "@tailwindcss/typography": "^0.5.9",
+        "@tailwindcss/vite": "^4.1.12",
+        "alpinejs": "^3.13.3",
+        "laravel-vite-plugin": "^1.0",
+        "prettier": "^3.0.1",
+        "prettier-plugin-blade": "^2.0.0",
+        "prettier-plugin-tailwindcss": "^0.6.14",
+        "tailwindcss": "^4.1.12",
+        "vite": "^5.4"
+    },
+    "dependencies": {
+        "chart.js": "^4.4.7",
+        "chartjs-adapter-moment": "^1.0.1"
+    }
+}

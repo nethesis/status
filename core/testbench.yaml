@@ -1,0 +1,48 @@
+providers:
+  - Workbench\App\Providers\WorkbenchServiceProvider
+  - Cachet\CachetCoreServiceProvider
+  - Cachet\CachetDashboardServiceProvider
+  - Spatie\LaravelSettings\LaravelSettingsServiceProvider
+  - Spatie\LaravelData\LaravelDataServiceProvider
+  - Laravel\Sanctum\SanctumServiceProvider
+  - Filament\FilamentServiceProvider
+
+env:
+  - AUTH_MODEL=\Workbench\App\User
+  - MAIL_MAILER=smtp
+  - MAIL_HOST=127.0.0.1
+  - MAIL_PORT=2525
+  - MAIL_USERNAME=cachet
+  - MAIL_PASSWORD=null
+  - MAIL_ENCRYPTION=null
+  - MAIL_FROM_ADDRESS="hello@cachethq.io"
+  - MAIL_FROM_NAME=Cachet
+
+migrations:
+  - workbench/database/migrations
+
+workbench:
+  start: '/'
+  install: true
+  discovers:
+    config: true
+    web: true
+  sync:
+    - from: public
+      to: public/vendor/cachethq/cachet
+  build:
+    - asset-publish
+    - filament:assets
+    - create-sqlite-db
+    - storage-link
+    - db:wipe
+    - migrate:refresh:
+        --seed: true
+        --seeder: Cachet\Database\Seeders\DatabaseSeeder
+  assets:
+    - query-builder-config
+    - cachet-assets
+
+purge:
+  directories:
+    - public/vendor

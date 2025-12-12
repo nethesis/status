@@ -1,0 +1,116 @@
+{
+    "name": "cachethq/core",
+    "description": "Cachet core package.",
+    "license": "proprietary",
+    "keywords": [
+        "cachet",
+        "status page",
+        "laravel"
+    ],
+    "authors": [
+        {
+            "name": "James Brooks",
+            "email": "james@alt-three.com"
+        }
+    ],
+    "homepage": "https://cachethq.io",
+    "support": {
+        "issues": "https://github.com/cachethq/core/issues",
+        "source": "https://github.com/cachethq/core"
+    },
+    "require": {
+        "php": "^8.2",
+        "ext-simplexml": "*",
+        "doctrine/dbal": "^3.6",
+        "filament/filament": "^4.0",
+        "filament/spatie-laravel-settings-plugin": "^4.0",
+        "guzzlehttp/guzzle": "^7.8",
+        "illuminate/cache": "^11.35.0",
+        "illuminate/console": "^11.35.0",
+        "illuminate/database": "^11.35.0",
+        "illuminate/events": "^11.35.0",
+        "illuminate/queue": "^11.35.0",
+        "illuminate/support": "^11.35.0",
+        "laravel/sanctum": "^4.0",
+        "nesbot/carbon": "^2.70",
+        "spatie/laravel-data": "^4.11",
+        "spatie/laravel-query-builder": "^5.5",
+        "spatie/laravel-settings": "^3.2",
+        "spatie/laravel-webhook-server": "^3.8",
+        "timacdonald/json-api": "^1.0.0-beta.4",
+        "twig/twig": "^3.0"
+    },
+    "require-dev": {
+        "dedoc/scramble": "^0.12",
+        "larastan/larastan": "^3.4",
+        "laravel/boost": "^1.0",
+        "laravel/pail": "^1.1",
+        "laravel/pint": "^1.24",
+        "orchestra/testbench": "^9.15.1",
+        "pestphp/pest": "^3.8",
+        "pestphp/pest-plugin-laravel": "^3.0",
+        "pestphp/pest-plugin-livewire": "*",
+        "pestphp/pest-plugin-type-coverage": "^3.3"
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "autoload": {
+        "psr-4": {
+            "Cachet\\": "src",
+            "Cachet\\Database\\Factories\\": "database/factories",
+            "Cachet\\Database\\Seeders\\": "database/seeders"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Cachet\\Database\\Factories\\": "database/factories",
+            "Cachet\\Tests\\": "tests",
+            "Workbench\\App\\": "workbench/app/",
+            "Workbench\\Database\\Factories\\": "workbench/database/factories/",
+            "Workbench\\Database\\Seeders\\": "workbench/database/seeders/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "sort-packages": true
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "3.x-dev"
+        },
+        "laravel": {
+            "providers": [
+                "Cachet\\CachetCoreServiceProvider",
+                "Cachet\\CachetDashboardServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": "@prepare",
+        "build": [
+            "@prepare",
+            "@clear",
+            "@php vendor/bin/testbench workbench:build"
+        ],
+        "canvas": "@php vendor/bin/canvas",
+        "clear": "@php vendor/bin/testbench package:purge-skeleton --ansi",
+        "dev": [
+            "@build",
+            "Composer\\Config::disableProcessTimeout",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php vendor/bin/testbench serve\" \"php vendor/bin/testbench queue:listen --tries=1\" \"php vendor/bin/testbench pail\" \"npm run dev\" --names=server,queue,logs,vite"
+        ],
+        "prepare": "@php vendor/bin/testbench package:discover --ansi",
+        "start": [
+            "@dev"
+        ],
+        "test:lint": [
+            "pint --test"
+        ],
+        "test:unit": "pest --parallel --processes=10 --ci --coverage --compact",
+        "test": [
+            "@test:unit"
+        ]
+    }
+}

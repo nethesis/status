@@ -1,0 +1,72 @@
+# Environment files
+.env
+.env.local
+.env.production
+
+# Prometheus configuration (contains internal IPs and infrastructure details)
+middleware/prometheus.yml
+
+# Traefik authentication credentials
+traefik/dynamic/middlewares.yml
+
+# Middleware configuration (may contain custom incident messages and group structure)
+middleware/config.json
+
+# Logs
+*.log
+middleware/logs/
+cachet/storage/logs/
+
+# Database backups
+backup-*.sql
+*.dump
+
+# Traefik certificates
+traefik-certs/
+letsencrypt/
+
+# Cachet storage
+cachet/storage/app/*
+cachet/storage/framework/cache/*
+cachet/storage/framework/sessions/*
+cachet/storage/framework/views/*
+!cachet/storage/app/.gitkeep
+!cachet/storage/framework/cache/.gitkeep
+!cachet/storage/framework/sessions/.gitkeep
+!cachet/storage/framework/views/.gitkeep
+
+# Composer vendor
+cachet/vendor/
+core/vendor/
+
+# Node modules
+cachet/node_modules/
+core/node_modules/
+
+# Build artifacts
+cachet/public/build/
+cachet/public/hot
+cachet/public/storage
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Podman/Docker volumes
+volumes/
+
+# Test files
+phpunit.xml
+.phpunit.result.cache

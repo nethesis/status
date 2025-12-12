@@ -1,0 +1,27 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    level: 5
+    reportUnmatchedIgnoredErrors: false
+
+    paths:
+        - src
+        - routes
+        - database/factories
+        - database/seeders
+
+    excludePaths:
+        - tests
+        - resources
+        - public
+
+    databaseMigrationsPath:
+        - database/migrations
+
+    ignoreErrors:
+        -
+            path: src/Http/Resources
+            identifier: return.type
+            message: '#Method Cachet\\Http\\Resources\\.*?::toRelationships\(\).*#'
