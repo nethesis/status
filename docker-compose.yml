@@ -15,7 +15,7 @@ volumes:
 services:
   # PostgreSQL Database for Cachet
   postgres:
-    image: docker.io/library/postgres:16-alpine
+    image: docker.io/library/postgres:18.1-alpine
     container_name: cachet-postgres
     restart: unless-stopped
     networks:
@@ -93,6 +93,7 @@ services:
       # HTTP router - redirect to HTTPS
       - "traefik.http.routers.cachet-http.rule=Host(`${CACHET_DOMAIN:-localhost}`)"
       - "traefik.http.routers.cachet-http.entrypoints=web"
+      # Comment to disable redirect in local environment
       - "traefik.http.routers.cachet-http.middlewares=redirect-to-https@file"
       # HTTPS router
       - "traefik.http.routers.cachet.rule=Host(`${CACHET_DOMAIN:-localhost}`)"
@@ -141,6 +142,7 @@ services:
       # HTTP router - redirect to HTTPS
       - "traefik.http.routers.webhook-http.rule=Host(`${WEBHOOK_DOMAIN:-localhost}`) && Path(`/webhook`)"
       - "traefik.http.routers.webhook-http.entrypoints=web"
+      # Comment to disable redirect in local environment
       - "traefik.http.routers.webhook-http.middlewares=redirect-to-https@file"
       # HTTPS router with BasicAuth
       - "traefik.http.routers.webhook.rule=Host(`${WEBHOOK_DOMAIN:-localhost}`) && Path(`/webhook`)"
@@ -162,7 +164,7 @@ services:
 
   # Traefik - Reverse Proxy with Let's Encrypt
   traefik:
-    image: docker.io/library/traefik:v2.10
+    image: docker.io/library/traefik:v3.6
     container_name: traefik
     restart: unless-stopped
     networks:
