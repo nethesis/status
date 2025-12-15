@@ -61,7 +61,7 @@ check_services() {
     print_step "STEP 0: Checking Services Status"
     
     # Use podman ps directly instead of podman-compose ps (better output format)
-    if ! podman ps --filter label=io.podman.compose.project=podman-setup --format "{{.Names}} {{.Status}}" | grep -q "cachet-app.*healthy"; then
+    if ! podman ps --format "{{.Names}} {{.Status}}" | grep -q "cachet-app.*healthy"; then
         print_error "Cachet service is not running or not healthy"
         echo "Please run 'podman-compose ps' to check service status"
         echo ""
