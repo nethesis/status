@@ -38,7 +38,6 @@ To allow Traefik to communicate with the container engine (Podman or Docker), yo
 **Required Variables:**
 
 - `PODMAN_SOCKET`: The path to the Podman or Docker socket on the host. This is mounted into the Traefik container.
-- `USER_ID` (optional): Your Linux user ID, used only to help compose the rootless Podman socket path.
 
 **Why is this necessary?**
 
@@ -54,8 +53,8 @@ Edit your `.env` file and set the variables as follows:
 **Podman rootless (recommended for development):**
 
 ```env
-USER_ID=1000  # Replace with your UID (run `id -u` to get it)
-PODMAN_SOCKET=/run/user/1000/podman/podman.sock
+# Replace with your personal user UID (run `id -u` to get it)
+PODMAN_SOCKET=/run/user/{USER_ID}/podman/podman.sock
 ```
 
 **Podman root:**
