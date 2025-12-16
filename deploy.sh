@@ -33,6 +33,51 @@ fi
 # Load environment variables
 source .env
 
+# Auto-detect and set PODMAN_SOCKET in .env if not set or invalid
+detect_and_set_podman_socket() {
+    local socket_path=""
+    if [ "$EUID" -eq 0 ]; then
+        # Root context
+        socket_path="/run/podman/podman.sock"
+    else
+        # Rootless context
+        socket_path="/run/user/$(id -u)/podman/podman.sock"
+    fi
+
+    # If PODMAN_SOCKET is not set or is not the detected value, update .env
+    if ! grep -q "^PODMAN_SOCKET=" .env; then
+        echo "PODMAN_SOCKET=\"$socket_path\"" >> .env
+        export PODMAN_SOCKET="$socket_path"
+        echo -e "${GREEN}✓${NC} PODMAN_SOCKET set to $socket_path in .env"
+    else
+        current_socket=$(grep "^PODMAN_SOCKET=" .env | cut -d= -f2- | tr -d '"')
+        if [ "$current_socket" != "$socket_path" ]; then
+            sed -i "s|^PODMAN_SOCKET=.*|PODMAN_SOCKET=\"$socket_path\"|" .env
+            export PODMAN_SOCKET="$socket_path"
+            echo -e "${GREEN}✓${NC} PODMAN_SOCKET updated to $socket_path in .env"
+        else
+            export PODMAN_SOCKET="$current_socket"
+            echo -e "${GREEN}✓${NC} PODMAN_SOCKET already set correctly in .env"
+        fi
+    fi
+}
+
+detect_and_set_podman_socket
+
+# Check and start Podman rootless socket if needed
+if [ "$EUID" -ne 0 ] && [[ "$PODMAN_SOCKET" == /run/user/* ]]; then
+    echo "Checking Podman rootless socket..."
+    if ! systemctl --user is-active --quiet podman.socket; then
+        echo "Podman rootless socket is not active. Starting it..."
+        systemctl --user start podman.socket
+        sleep 2
+    fi
+    if ! systemctl --user is-active --quiet podman.socket; then
+        echo "Error: Podman rootless socket could not be started. Please check your user session and permissions."
+        exit 1
+    fi
+fi
+
 # Check required environment variables
 REQUIRED_VARS=("DB_PASSWORD")
 MISSING_VARS=()

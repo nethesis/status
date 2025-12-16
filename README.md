@@ -31,44 +31,26 @@ nano .env
 - `APP_KEY` - Generated during deployment
 - `CACHET_API_TOKEN` - Generated during setup
 
-#### Podman/Docker Socket Configuration
-
-To allow Traefik to communicate with the container engine (Podman or Docker), you must configure the socket path in your `.env` file. This is required for service discovery and dynamic routing.
-
-**Required Variables:**
-
-- `PODMAN_SOCKET`: The path to the Podman or Docker socket on the host. This is mounted into the Traefik container.
-
-**Why is this necessary?**
-
-Traefik needs access to the container engine's socket to detect running services and route traffic. The socket path differs depending on whether you use Podman in rootless mode, Podman as root, or Docker:
-
-- **Podman rootless**: The socket is per-user and located at `/run/user/<USER_ID>/podman/podman.sock`.
-- **Podman root**: The socket is at `/run/podman/podman.sock`.
-
-**How to configure:**
-
-Edit your `.env` file and set the variables as follows:
-
-**Podman rootless (recommended for development):**
-
-```env
-# Replace with your personal user UID (run `id -u` to get it)
-PODMAN_SOCKET=/run/user/{USER_ID}/podman/podman.sock
-```
-
-**Podman root:**
-
-```env
-PODMAN_SOCKET=/run/podman/podman.sock
-```
-
-> **Note:**
-> - If you use Podman rootless, set both USER_ID and PODMAN_SOCKET as above.
-> - For root, leave USER_ID empty or unset and set only PODMAN_SOCKET.
-> - The value of PODMAN_SOCKET is used in `docker-compose.yml` to mount the correct socket into the Traefik container.
-
-If you do not set PODMAN_SOCKET, the deployment will fail to start Traefik correctly.
+> **Note for rootless Podman and privileged ports (80/443):**
+> 
+> By default, non-root users cannot bind to ports below 1024 (such as 80 and 443). If you want to expose Traefik or other services directly on these ports in rootless mode, you must configure the following kernel parameter on your host system:
+> 
+> ```bash
+> sudo sysctl net.ipv4.ip_unprivileged_port_start=443
+> ```
+> 
+> To make this change persistent after reboot, add this line to `/etc/sysctl.conf`:
+> 
+> ```
+> net.ipv4.ip_unprivileged_port_start=443
+> ```
+> and apply with:
+> 
+> ```bash
+> sudo sysctl -p
+> ```
+> 
+> **Do not set this in any project file (.env, docker-compose.yml, etc): it must be configured at the OS level.**
 
 ### 2. Configure Prometheus Targets
 
@@ -152,9 +134,9 @@ prometheus_targets:
 
 **Important**: Make sure all component names used in `status_page_component` labels are also defined in the `groups_configuration` section of `middleware/config.json`.
 
-### 4. Configure Traefik Middlewares (Optional)
+### 4. Configure Traefik Middlewares
 
-If you need custom authentication for the Traefik dashboard, copy and edit the middlewares configuration:
+Copy the middlewares configuration for webhook authentication:
 
 ```bash
 cp traefik/dynamic/middlewares.yml.example traefik/dynamic/middlewares.yml
@@ -182,7 +164,6 @@ For local development (without HTTPS), you need to disable the HTTPS redirect in
 Also ensure your `.env` is configured for local environment:
 ```bash
 ENVIRONMENT=local
-PODMAN_SOCKET=/run/user/1000/podman/podman.sock
 CACHET_DOMAIN=localhost
 WEBHOOK_DOMAIN=localhost
 TRAEFIK_DOMAIN=localhost
