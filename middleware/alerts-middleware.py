@@ -9,6 +9,7 @@ import psutil
 import signal
 import atexit
 import time
+from datetime import datetime
 
 # Load environment variables from .env file
 load_dotenv()
@@ -106,7 +107,8 @@ def print_component_status_change(name, old_status, new_status):
     new_status_val = _extract_status_value(new_status)
     old_status_str = status_map.get(old_status_val, str(old_status_val))
     new_status_str = status_map.get(new_status_val, str(new_status_val))
-    print(f"[COMPONENT_STATUS_CHANGE] component=\"{name}\" old_status={old_status_val} ({old_status_str}) new_status={new_status_val} ({new_status_str})")
+    now = datetime.now().isoformat()
+    print(f"[COMPONENT_STATUS_CHANGE] [{now}] component=\"{name}\" old_status={old_status_val} ({old_status_str}) new_status={new_status_val} ({new_status_str})")
 
 def get_component_name(component_id):
     """Get the component name from CachetHQ API."""
@@ -473,8 +475,9 @@ def log_request_details(req):
         body_str = f"Failed to parse JSON: {e}; Raw: {req.data.decode('utf-8', errors='ignore')}"
     headers_str = "; ".join([f"{k}: {v}" for k, v in req.headers])
     # Compose single line log
+    now = datetime.now().isoformat()
     log_line = (
-        f"[WEBHOOK_REQUEST] source_ip={source_ip} "
+        f"[WEBHOOK_REQUEST] [{now}] source_ip={source_ip} "
         f"headers=[{headers_str}] "
         f"body={body_str}"
     )

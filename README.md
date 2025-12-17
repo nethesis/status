@@ -261,7 +261,7 @@ To monitor received webhook requests and component status changes from the middl
 To view all requests received on the `/webhook` endpoint:
 
 ```
-podman logs <container-name> | grep "WEBHOOK_REQUEST"
+podman logs <container-name> 2>/dev/null | grep "\[WEBHOOK_REQUEST\]"
 ```
 
 Example output:
@@ -275,7 +275,7 @@ Example output:
 To view all component status changes (both visible and invisible):
 
 ```
-podman logs <container-name> | grep "COMPONENT_STATUS_CHANGE"
+podman logs <container-name> 2>/dev/null | grep "\[COMPONENT_STATUS_CHANGE\]"
 ```
 
 Example output:
