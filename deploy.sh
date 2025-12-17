@@ -123,33 +123,6 @@ mkdir -p cachet/storage/framework/{sessions,views,cache}
 chmod -R 755 middleware/logs
 chmod -R 755 cachet/storage
 
-# Fix traefik-certs volume permissions for rootless podman
-echo ""
-echo "Checking traefik-certs volume permissions..."
-PROJECT_PREFIX=$(basename "$PWD" | tr -d '\n' | tr -c 'a-zA-Z0-9' '_')
-PROJECT_PREFIX="${PROJECT_PREFIX%_}"
-TRAEFIK_VOLUME_NAME="${PROJECT_PREFIX}_traefik-certs"
-
-TRAEFIK_CERTS_PATH=""
-if podman volume inspect "$TRAEFIK_VOLUME_NAME" &>/dev/null; then
-    TRAEFIK_CERTS_PATH=$(podman volume inspect "$TRAEFIK_VOLUME_NAME" --format '{{ .Mountpoint }}')
-    if [ -n "$TRAEFIK_CERTS_PATH" ]; then
-        mkdir -p "$TRAEFIK_CERTS_PATH"
-        # Fix permissions for acme.json if exists, else create it
-        if [ ! -f "$TRAEFIK_CERTS_PATH/acme.json" ]; then
-            touch "$TRAEFIK_CERTS_PATH/acme.json"
-        fi
-        chmod 600 "$TRAEFIK_CERTS_PATH/acme.json"
-        # Change owner to current user if running rootless
-        if [ "$EUID" -ne 0 ]; then
-            chown $(id -u):$(id -g) "$TRAEFIK_CERTS_PATH/acme.json"
-        fi
-        echo -e "${GREEN}✓${NC} $TRAEFIK_VOLUME_NAME/acme.json permissions set (600, user: $(id -u))"
-    fi
-else
-    echo -e "${YELLOW}Warning: $TRAEFIK_VOLUME_NAME volume not found. It will be created on first up.${NC}"
-fi
-
 # Generate APP_KEY if not present in podman-setup/.env
 echo ""
 echo "Checking Laravel APP_KEY in .env..."
@@ -259,6 +232,33 @@ echo ""
 echo "Fixing permissions (post-startup)..."
 podman-compose exec -T cachet chown -R www-data:www-data /var/www/html/bootstrap/cache /var/www/html/storage
 podman-compose exec -T cachet chmod -R 775 /var/www/html/bootstrap/cache /var/www/html/storage
+
+# Fix Traefik acme.json permissions for Let's Encrypt when deploying with rootless Podman
+echo ""
+echo "Checking traefik-certs volume permissions..."
+PROJECT_PREFIX=$(basename "$PWD" | tr -d '\n' | tr -c 'a-zA-Z0-9' '_')
+PROJECT_PREFIX="${PROJECT_PREFIX%_}"
+TRAEFIK_VOLUME_NAME="${PROJECT_PREFIX}_traefik-certs"
+
+TRAEFIK_CERTS_PATH=""
+if podman volume inspect "$TRAEFIK_VOLUME_NAME" &>/dev/null; then
+    TRAEFIK_CERTS_PATH=$(podman volume inspect "$TRAEFIK_VOLUME_NAME" --format '{{ .Mountpoint }}')
+    if [ -n "$TRAEFIK_CERTS_PATH" ]; then
+        mkdir -p "$TRAEFIK_CERTS_PATH"
+        # Fix permissions for acme.json if exists, else create it
+        if [ ! -f "$TRAEFIK_CERTS_PATH/acme.json" ]; then
+            touch "$TRAEFIK_CERTS_PATH/acme.json"
+        fi
+        chmod 600 "$TRAEFIK_CERTS_PATH/acme.json"
+        # Change owner to current user if running rootless
+        if [ "$EUID" -ne 0 ]; then
+            chown $(id -u):$(id -g) "$TRAEFIK_CERTS_PATH/acme.json"
+        fi
+        echo -e "${GREEN}✓${NC} $TRAEFIK_VOLUME_NAME/acme.json permissions set (600, user: $(id -u))"
+    fi
+else
+    echo -e "${RED}Error: $TRAEFIK_VOLUME_NAME volume not found!${NC}"
+fi
 
 echo ""
 echo "=========================================="
