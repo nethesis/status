@@ -18,12 +18,12 @@ if [ -d "cachet" ]; then
 fi
 
 # Copy SSH directory for Docker build context (for composer update in Dockerfile)
-SSH_BUILD_CONTEXT="cachet-configuration-files/.ssh"
+SSH_BUILD_CONTEXT=".ssh"
 if [ -d "$SSH_BUILD_CONTEXT" ]; then
-    echo "Removing old .ssh from build context..."
+    echo "Removing old .ssh from build context root..."
     rm -rf "$SSH_BUILD_CONTEXT"
 fi
-echo "Copying ~/.ssh to $SSH_BUILD_CONTEXT for build context..."
+echo "Copying ~/.ssh to project root for build context..."
 cp -r ~/.ssh "$SSH_BUILD_CONTEXT"
 
 # Clone Cachet repository
@@ -234,11 +234,18 @@ echo "=========================================="
 
 # Build and start services
 echo "Building images..."
+
+# Check that .ssh exists in build context before build
+if [ ! -d ".ssh" ]; then
+    echo "Error: .ssh directory not found in build context root! Aborting build."
+    exit 1
+fi
+
 podman-compose build
 
 # Remove SSH directory from build context after build for security
 if [ -d "$SSH_BUILD_CONTEXT" ]; then
-    echo "Removing .ssh from build context after build..."
+    echo "Removing .ssh from build context root after build..."
     rm -rf "$SSH_BUILD_CONTEXT"
 fi
 

@@ -75,4 +75,4 @@ phpunit.xml
 cachet/
 
 # Ignore SSH directory used for build context
-cachet-configuration-files/.ssh/
+.ssh/
