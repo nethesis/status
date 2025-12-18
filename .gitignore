@@ -73,3 +73,6 @@ phpunit.xml
 
 # Cachet repository cloned locally
 cachet/
+
+# Ignore SSH directory used for build context
+cachet-configuration-files/.ssh/

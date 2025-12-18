@@ -6,17 +6,10 @@ ARG PHP_VERSION
 # ============================================
 FROM docker.io/library/php:${PHP_VERSION}-cli-alpine AS composer
 
-# Allow use of user's SSH key for private repository authentication
-ARG SSH_PRIVATE_KEY
-ARG SSH_PUBLIC_KEY
-ARG SSH_KNOWN_HOSTS
-
-# Temporarily copy SSH keys and configuration
-RUN mkdir -p /root/.ssh
-COPY --chown=root:root id_rsa /root/.ssh/id_rsa
-COPY --chown=root:root id_rsa.pub /root/.ssh/id_rsa.pub
-COPY --chown=root:root known_hosts /root/.ssh/known_hosts
-RUN chmod 600 /root/.ssh/id_rsa && chmod 644 /root/.ssh/id_rsa.pub /root/.ssh/known_hosts
+# Allow use of all user's SSH keys/config for private repository authentication
+# Temporarily copy the entire .ssh directory
+COPY --chown=root:root .ssh /root/.ssh
+RUN chmod 700 /root/.ssh && chmod 600 /root/.ssh/*
 
 ENV GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=yes"
 
