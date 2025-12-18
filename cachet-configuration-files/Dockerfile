@@ -61,7 +61,12 @@ RUN composer install \
     --ignore-platform-req=ext-xml
 
 # Update cachethq/core dependency
-RUN composer update cachethq/core --no-interaction --no-dev --prefer-dist \
+RUN composer update cachethq/core 
+    --no-interaction \
+    --no-dev \
+    --prefer-dist \
+    --no-progress \
+    --no-scripts \
     --ignore-platform-req=ext-simplexml \
     --ignore-platform-req=ext-fileinfo \
     --ignore-platform-req=ext-session \
