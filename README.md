@@ -33,7 +33,23 @@ To deploy the infrastructure, ensure the following prerequisites are met:
      ```
    - This command should be executed inside the user's `.ssh` directory.
 
-By following these steps, you ensure that the deployment process can authenticate with GitHub during the build phase.
+3. **System Requirements**:
+   - **Bash**: Ensure Bash is installed as the default shell.
+   - **Podman**: Install Podman for container management.
+   - **Podman-Compose**: Install Podman-Compose using the following commands to avoid issues with outdated versions:
+     ```bash
+     sudo curl -L https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py -o /usr/local/bin/podman-compose
+     sudo chmod +x /usr/local/bin/podman-compose
+     ```
+     > **Note**: The version available via `apt` (1.0.6) is outdated and contains bugs related to volume mounting.
+   - **Python 3**: Ensure Python 3 and pip3 are installed.
+   - **curl**: Required for testing webhook endpoints.
+   - **htpasswd**: Installable via `apache2-utils`, used for HTTP authentication.
+   - **openssl**: Required for generating random keys (e.g., `APP_KEY`).
+   - **systemctl**: Required for managing the Podman rootless socket (systemd-based systems).
+   - **sed**, **grep**, **awk**: Standard utilities for file and string manipulation.
+
+By following these steps and ensuring the required tools are installed, you can successfully deploy the infrastructure and complete the setup process.
 
 ---
 
