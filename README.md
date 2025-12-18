@@ -18,6 +18,25 @@ The middleware handles alert lifecycle (firing/resolved) and intelligently updat
 
 ---
 
+## Prerequisites for Deployment
+
+To deploy the infrastructure, ensure the following prerequisites are met:
+
+1. **Configured SSH Key**:
+   - The user must have an SSH key configured on their system.
+   - The key must be authorized to access private repositories on GitHub.
+
+2. **Add GitHub to known_hosts**:
+   - Run the following command to add GitHub's fingerprint to the `known_hosts` file:
+     ```bash
+     ssh-keyscan github.com >> ~/.ssh/known_hosts
+     ```
+   - This command should be executed inside the user's `.ssh` directory.
+
+By following these steps, you ensure that the deployment process can authenticate with GitHub during the build phase.
+
+---
+
 ## Quick Start
 
 ### 1. Configure Environment
