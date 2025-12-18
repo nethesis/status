@@ -34,6 +34,9 @@ git clone git@github.com:cachethq/cachet.git cachet || { echo "Error cloning cac
 cp cachet-configuration-files/Dockerfile cachet/Dockerfile
 cp -r cachet-configuration-files/docker cachet/
 
+# Overwrite TrustProxies.php in the existing directory
+cp cachet-configuration-files/proxy/TrustProxies.php cachet/app/Http/Middleware/TrustProxies.php
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
