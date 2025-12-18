@@ -13,11 +13,15 @@ RUN chmod 700 /root/.ssh && chmod 600 /root/.ssh/*
 
 ENV GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=yes"
 
-# Install composer and required extensions
+# Install composer, build tools, and required extensions
 RUN apk add --no-cache \
     composer \
     icu-dev \
     libxml2-dev \
+    php-dev \
+    autoconf \
+    g++ \
+    make \
     && docker-php-ext-install \
         intl \
         dom \
