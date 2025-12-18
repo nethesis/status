@@ -16,7 +16,6 @@ RUN apk add --no-cache \
         dom \
         xml \
         simplexml \
-        tokenizer \
         session \
     && php -m | grep -i intl \
     && php -m | grep -i dom \
@@ -82,7 +81,6 @@ RUN apk add --no-cache \
         dom \
         xml \
         simplexml \
-        tokenizer \
         session \
     && rm -rf /var/cache/apk/*
 
