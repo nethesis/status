@@ -61,7 +61,10 @@ RUN composer install \
     --ignore-platform-req=ext-xml
 
 # Update cachethq/core dependency
-RUN composer update cachethq/core --no-interaction --no-dev --prefer-dist
+RUN composer update cachethq/core --no-interaction --no-dev --prefer-dist \
+    --ignore-platform-req=ext-simplexml \
+    --ignore-platform-req=ext-session \
+    --ignore-platform-req=ext-tokenizer
 
 # Remove SSH keys after use for security
 RUN rm -rf /root/.ssh
