@@ -1,11 +1,6 @@
 # Traefik Static Configuration - LOCAL DEVELOPMENT
 # Self-signed certificates for localhost testing
 
-# API and Dashboard
-api:
-  dashboard: true
-  insecure: true  # Dashboard on :8080 without auth
-
 # Entry Points
 entryPoints:
   web:
@@ -22,7 +17,7 @@ providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
-    network: cachet-network
+    network: status_cachet-network
   
   file:
     directory: /etc/traefik/dynamic

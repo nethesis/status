@@ -80,17 +80,17 @@ services:
       - ./cachet/.env:/var/www/html/.env:ro
     labels:
       - "traefik.enable=true"
-      # HTTP router - redirect to HTTPS
-      - "traefik.http.routers.cachet-http.rule=Host(`${CACHET_DOMAIN:-localhost}`)"
-      - "traefik.http.routers.cachet-http.entrypoints=web"
-      # Comment to disable redirect in local environment
-      - "traefik.http.routers.cachet-http.middlewares=redirect-to-https@file"
-      # HTTPS router
+      # Local
+      - "traefik.http.routers.cachet-local.rule=Host(`${CACHET_DOMAIN:-localhost}`)"
+      - "traefik.http.routers.cachet-local.entrypoints=web"
+      - "traefik.http.routers.cachet-local.service=cachet"
+      # Production
       - "traefik.http.routers.cachet.rule=Host(`${CACHET_DOMAIN:-localhost}`)"
       - "traefik.http.routers.cachet.entrypoints=websecure"
       - "traefik.http.routers.cachet.tls=true"
       - "traefik.http.routers.cachet.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
       - "traefik.http.routers.cachet.middlewares=https-headers@file"
+      - "traefik.http.routers.cachet.middlewares=redirect-to-https@file"
       - "traefik.http.routers.cachet.service=cachet"
       # Service
       - "traefik.http.services.cachet.loadbalancer.server.port=80"
@@ -127,17 +127,17 @@ services:
       - ./middleware/prometheus.yml:/app/prometheus.yml:ro
     labels:
       - "traefik.enable=true"
-      # HTTP router - redirect to HTTPS
-      - "traefik.http.routers.webhook-http.rule=Host(`${WEBHOOK_DOMAIN:-localhost}`) && Path(`/webhook`)"
-      - "traefik.http.routers.webhook-http.entrypoints=web"
-      # Comment to disable redirect in local environment
-      - "traefik.http.routers.webhook-http.middlewares=redirect-to-https@file"
-      # HTTPS router with BasicAuth
+      # Local
+      - "traefik.http.routers.webhook-local.rule=Host(`${WEBHOOK_DOMAIN:-localhost}`) && Path(`/webhook`)"
+      - "traefik.http.routers.webhook-local.entrypoints=web"
+      - "traefik.http.routers.webhook-local.service=middleware"
+      # Production
       - "traefik.http.routers.webhook.rule=Host(`${WEBHOOK_DOMAIN:-localhost}`) && Path(`/webhook`)"
       - "traefik.http.routers.webhook.entrypoints=websecure"
       - "traefik.http.routers.webhook.tls=true"
       - "traefik.http.routers.webhook.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
       - "traefik.http.routers.webhook.middlewares=webhook-auth@file"
+      - "traefik.http.routers.webhook.middlewares=redirect-to-https@file"
       - "traefik.http.routers.webhook.service=middleware"
       # Service definition
       - "traefik.http.services.middleware.loadbalancer.server.port=5000"
@@ -160,7 +160,6 @@ services:
     ports:
       - "${HTTP_PORT:-8080}:80"     # HTTP entrypoint
       - "${HTTPS_PORT:-8443}:443"   # HTTPS entrypoint
-      - "${DASHBOARD_PORT:-9090}:8080" # Traefik dashboard
     volumes:
       - ${PODMAN_SOCKET}:/var/run/docker.sock:ro,z  # Podman socket (set PODMAN_SOCKET in .env)
       - ./traefik/traefik.${ENVIRONMENT:-production}.yml:/etc/traefik/traefik.yml:ro
@@ -171,11 +170,7 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-production}
     labels:
       - "traefik.enable=true"
-      # Dashboard - using /traefik path to avoid conflict with Cachet dashboard (HTTP only for local)
-      - "traefik.http.routers.traefik-dashboard.rule=Host(`${TRAEFIK_DOMAIN:-localhost}`) && PathPrefix(`/traefik`)"
-      - "traefik.http.routers.traefik-dashboard.service=api@internal"
-      - "traefik.http.routers.traefik-dashboard.entrypoints=web"
-      - "traefik.http.routers.traefik-dashboard.middlewares=dashboard-auth@file"
+
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s

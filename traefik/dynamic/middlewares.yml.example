@@ -8,6 +8,7 @@
 
 http:
   middlewares:
+  
     # BasicAuth middleware for /webhook endpoint
     webhook-auth:
       basicAuth:
@@ -16,13 +17,6 @@ http:
           # WEBHOOK_USERNAME and WEBHOOK_PASSWORD
           # The deploy.sh script will hash the password and update this line
           - "WEBHOOK_CREDENTIALS_PLACEHOLDER"
-    
-    # BasicAuth for Traefik Dashboard (optional)
-    dashboard-auth:
-      basicAuth:
-        users:
-          # Generate with: htpasswd -nb admin yourpassword
-          - "TRAEFIK_DASHBOARD_CREDENTIALS_PLACEHOLDER"
     
     # HTTPS redirect middleware
     redirect-to-https:

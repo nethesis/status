@@ -73,13 +73,13 @@ nano .env
 > By default, non-root users cannot bind to ports below 1024 (such as 80 and 443). If you want to expose Traefik or other services directly on these ports in rootless mode, you must configure the following kernel parameter on your host system:
 > 
 > ```bash
-> sudo sysctl net.ipv4.ip_unprivileged_port_start=443
+> sudo sysctl net.ipv4.ip_unprivileged_port_start=80
 > ```
 > 
 > To make this change persistent after reboot, add this line to `/etc/sysctl.conf`:
 > 
 > ```
-> net.ipv4.ip_unprivileged_port_start=443
+> net.ipv4.ip_unprivileged_port_start=80
 > ```
 > and apply with:
 > 
@@ -186,19 +186,7 @@ nano traefik/dynamic/middlewares.yml
 
 **⚠️ Important for Local Deployment:**
 
-For local development (without HTTPS), you need to disable the HTTPS redirect in `docker-compose.yml`. Comment out the redirect middleware on the HTTP routers:
-
-**For Cachet service**:
-```yaml
-# - "traefik.http.routers.cachet-http.middlewares=redirect-to-https@file"
-```
-
-**For Middleware service**:
-```yaml
-# - "traefik.http.routers.webhook-http.middlewares=redirect-to-https@file"
-```
-
-Also ensure your `.env` is configured for local environment:
+For local development (without HTTPS), ensure your `.env` is properly configured:
 ```bash
 ENVIRONMENT=local
 CACHET_DOMAIN=localhost
@@ -210,8 +198,6 @@ APP_URL=http://localhost:8080
 ASSET_URL=http://localhost:8080
 CERT_RESOLVER=
 ```
-
-**For Production deployment**, make sure these redirect middlewares are **uncommented** to enforce HTTPS.
 
 ### 6. Deploy Infrastructure
 

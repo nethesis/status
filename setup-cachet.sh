@@ -117,7 +117,7 @@ generate_api_token() {
     echo "  1. Login to Cachet dashboard: ${APP_URL}"
     echo "  2. Go to Settings → Manage API Keys"
     echo "  3. Click 'New API Key'"
-    echo "  4. Give it a name (e.g., 'Middleware Integration')"
+    echo "  4. Give it a name (e.g., 'Middleware API Key')"
     echo "  5. Select abilities: 'components:read', 'components:write', 'incidents:read', 'incidents:write'"
     echo "  6. Click 'Create' and copy the generated token"
     echo ""
@@ -274,7 +274,6 @@ verify_webhook() {
     
     if [ "$response" = "200" ]; then
         print_success "Webhook endpoint is working correctly!"
-        print_info "Webhook URL: $webhook_url"
         print_info "Credentials: ${WEBHOOK_USERNAME}:${WEBHOOK_PASSWORD}"
     else
         print_warning "Webhook test returned HTTP $response"
@@ -295,24 +294,16 @@ print_summary() {
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  📊 Status Page:      ${APP_URL}"
     echo "  🔧 Status Page Manager Login:  ${APP_URL}/dashboard/login"
-    echo "  📡 Webhook Endpoint: http://localhost:${HTTP_PORT:-8080}/webhook"
-    echo "  📈 Traefik Dashboard: http://localhost:${DASHBOARD_PORT:-9090}/dashboard"
+    echo "  📡 Webhook Endpoint: http://${APP_URL}/webhook"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo -e "${GREEN}Webhook Configuration (for Alertmanager):${NC}"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  URL:      http://localhost:${HTTP_PORT:-8080}/webhook"
+    echo "  URL:      http://${APP_URL}/webhook"
     echo "  Username: ${WEBHOOK_USERNAME}"
     echo "  Password: ${WEBHOOK_PASSWORD}"
     echo ""
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo -e "${GREEN}Useful Commands:${NC}"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    echo "  Check status:        podman-compose ps"
-    echo "  View logs:           podman-compose logs -f [service]"
-    echo "  Restart middleware:  podman-compose restart middleware"
-    echo "  Re-run setup.py:     podman exec cachet-middleware python3 /app/setup.py --file /app/prometheus.yml"
-    echo "  Healthcheck:         ./healthcheck.sh"
     echo ""
 }
 

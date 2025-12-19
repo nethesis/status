@@ -1,10 +1,6 @@
 # Traefik Static Configuration - PRODUCTION
 # Let's Encrypt automatic SSL certificates
 
-# API and Dashboard
-api:
-  dashboard: true  # Enable but protect with auth in dynamic config
-
 # Entry Points
 entryPoints:
   web:
@@ -36,7 +32,7 @@ providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
-    network: cachet-network
+    network: status_cachet-network
   
   file:
     directory: /etc/traefik/dynamic

@@ -209,27 +209,6 @@ else
     echo -e "${YELLOW}Warning: WEBHOOK_USERNAME or WEBHOOK_PASSWORD not set in .env${NC}"
 fi
 
-# Configure Traefik dashboard authentication in Traefik middlewares
-echo ""
-echo "Configuring Traefik dashboard authentication..."
-if [ -n "${TRAEFIK_DASHBOARD_USERNAME}" ] && [ -n "${TRAEFIK_DASHBOARD_PASSWORD}" ]; then
-    # Check if htpasswd is available
-    if ! command -v htpasswd &> /dev/null; then
-        echo -e "${YELLOW}Warning: htpasswd not found. Installing apache2-utils...${NC}"
-        sudo apt-get install -y apache2-utils || {
-            echo -e "${RED}Error: Failed to install apache2-utils. Please install it manually.${NC}"
-            exit 1
-        }
-    fi
-    # Generate SHA hash for dashboard credentials
-    TRAEFIK_DASHBOARD_HASH=$(htpasswd -nbs "${TRAEFIK_DASHBOARD_USERNAME}" "${TRAEFIK_DASHBOARD_PASSWORD}")
-    # Update middlewares.yml with the generated hash
-    sed -i 's|.*TRAEFIK_DASHBOARD_CREDENTIALS_PLACEHOLDER.*|          - "'"${TRAEFIK_DASHBOARD_HASH}"'"|g' traefik/dynamic/middlewares.yml
-    echo -e "${GREEN}✓${NC} Traefik dashboard authentication configured for user: ${TRAEFIK_DASHBOARD_USERNAME}"
-else
-    echo -e "${YELLOW}Warning: TRAEFIK_DASHBOARD_USERNAME or TRAEFIK_DASHBOARD_PASSWORD not set in .env${NC}"
-fi
-
 echo ""
 echo "=========================================="
 echo "Starting deployment..."
@@ -317,11 +296,9 @@ echo ""
 echo "Access URLs (${ENVIRONMENT:-local} environment):"
 if [ "${ENVIRONMENT:-local}" == "local" ]; then
     echo "  - Cachet Status Page: http://localhost:${HTTP_PORT:-8080}"
-    echo "  - Traefik Dashboard:  http://localhost:${HTTP_PORT:-9090}/traefik"
     echo "  - Webhook Endpoint:   http://localhost:${HTTP_PORT:-8080}/webhook"
 else
     echo "  - Cachet Status Page: https://${CACHET_DOMAIN}"
-    echo "  - Traefik Dashboard:  https://${CACHET_DOMAIN}:${DASHBOARD_PORT:-9090}/traefik"
     echo "  - Webhook Endpoint:   https://${WEBHOOK_DOMAIN}/webhook"
 fi
 echo ""
@@ -333,9 +310,8 @@ echo "Run the interactive setup script to complete the configuration:"
 echo -e "  ${GREEN}./setup-cachet.sh${NC}"
 echo ""
 echo "This will guide you through:"
-echo "  1. Creating admin user (php artisan cachet:make:user)"
+echo "  1. Creating admin user"
 echo "  2. Generating API token from Cachet dashboard"
 echo "  3. Configuring middleware with the API token"
-echo "  4. Initializing components from prometheus.yml"
-echo "  5. Verifying webhook endpoint"
+echo "  4. Initializing components from configuration files"
 echo ""
