@@ -1,0 +1,14 @@
+http:
+  services:
+    cachet:
+      loadBalancer:
+        servers:
+          - url: "http://cachet:80"
+    
+    middleware:
+      loadBalancer:
+        servers:
+          - url: "http://middleware:5000"
+        healthCheck:
+          path: /health
+          interval: 30s

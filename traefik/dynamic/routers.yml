@@ -1,0 +1,33 @@
+http:
+  routers:
+    cachet:
+      rule: 'Host(`{{ env "CACHET_DOMAIN" | default "localhost" }}`)'
+      service: cachet
+      {{ if eq (env "ENVIRONMENT") "production" }}
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: '{{ env "CERT_RESOLVER" | default "letsencrypt" }}'
+      middlewares:
+        - https-headers
+        - redirect-to-https
+      {{ else }}
+      entryPoints:
+        - web
+      {{ end }}
+
+    webhook:
+      rule: 'Host(`{{ env "WEBHOOK_DOMAIN" | default "localhost" }}`) && Path(`/webhook`)'
+      service: middleware
+      {{ if eq (env "ENVIRONMENT") "production" }}
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: '{{ env "CERT_RESOLVER" | default "letsencrypt" }}'
+      middlewares:
+        - webhook-auth
+        - redirect-to-https
+      {{ else }}
+      entryPoints:
+        - web
+      {{ end }}

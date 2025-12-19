@@ -14,11 +14,6 @@ entryPoints:
 
 # Providers
 providers:
-  docker:
-    endpoint: "unix:///var/run/docker.sock"
-    exposedByDefault: false
-    network: status_cachet-network
-  
   file:
     directory: /etc/traefik/dynamic
     watch: true

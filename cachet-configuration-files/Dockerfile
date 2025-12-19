@@ -1,49 +1,81 @@
-# Multi-stage build for production Cachet deployment
-ARG PHP_VERSION
+# Single-stage build for production Cachet deployment
+ARG PHP_VERSION=8.3
+ARG CACHET_COMMIT=207a6d5a7c309fcdc4656a074869f0afa06d142c
 
-# ============================================
-# Stage 1: Composer dependencies
-# ============================================
-FROM docker.io/library/php:${PHP_VERSION}-cli-alpine AS composer
+FROM docker.io/library/php:${PHP_VERSION}-fpm-alpine
 
-# Allow use of all user's SSH keys/config for private repository authentication
-# Temporarily copy the entire .ssh directory
-COPY --chown=root:root .ssh /root/.ssh
-RUN chmod 700 /root/.ssh && chmod 600 /root/.ssh/*
-
-ENV GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=yes"
-
-# Install composer, build tools, and required extensions
+# Install system dependencies and composer
 RUN apk add --no-cache \
     composer \
+    nginx \
+    supervisor \
+    postgresql-dev \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    oniguruma-dev \
     icu-dev \
     libxml2-dev \
+    libpq \
+    icu-libs \
+    libjpeg-turbo \
+    libpng \
+    freetype \
+    libzip \
+    oniguruma \
+    libxml2 \
+    curl \
+    bash \
+    git \
     autoconf \
     g++ \
     make \
-    git \
-    openssh \
-    && docker-php-ext-install \
+    ca-certificates \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+        pdo \
+        pdo_pgsql \
+        pgsql \
+        zip \
+        gd \
+        mbstring \
         intl \
         dom \
         xml \
         simplexml \
         session \
-    && php -m | grep -i intl \
-    && php -m | grep -i dom \
-    && php -m | grep -i simplexml \
-    && php -m | grep -i tokenizer \
-    && php -m | grep -i session
+    && docker-php-ext-enable opcache pdo pdo_pgsql
 
-WORKDIR /app
+# Configure PHP for production (relative to podman-setup)
+COPY ./docker/php/php.ini /usr/local/etc/php/conf.d/cachet.ini
+COPY ./docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
-COPY ./cachet/composer.json ./cachet/composer.lock ./
+# Configure Nginx
+COPY ./docker/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY ./docker/nginx/default.conf /etc/nginx/http.d/default.conf
 
-# Install dependencies (including dev for now - Pail is required by config/app.php)
+# Configure Supervisor
+COPY ./docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+# Set working directory
+WORKDIR /var/www/html
+
+# Clone Cachet repository
+RUN git clone https://github.com/cachethq/cachet.git /var/www/html/ \
+    && git --git-dir /var/www/html/.git checkout ${CACHET_COMMIT}
+
+# Copy local configuration files into the cloned Cachet repository
+COPY --chown=root:root ./proxy/TrustProxies.php /var/www/html/app/Http/Middleware/TrustProxies.php
+
+# Copy AdminSeeder to enable admin user creation via environment variables
+COPY ./token/AdminSeeder.php /var/www/html/database/seeders/AdminSeeder.php
+
+# Install composer dependencies (no dev)
 # Note: We ignore platform requirements for extensions that are:
 # - Bundled in PHP 8.3 (fileinfo, session, tokenizer, simplexml, xmlreader, xmlwriter)
 # - Installed but not detected correctly by composer (intl, dom, xml)
-RUN composer install \
+RUN cd /var/www/html && composer install --no-dev \
     --no-interaction \
     --no-progress \
     --no-scripts \
@@ -60,92 +92,18 @@ RUN composer install \
     --ignore-platform-req=ext-dom \
     --ignore-platform-req=ext-xml
 
-# Update cachethq/core dependency
-# RUN composer update cachethq/core 
-#    --no-interaction \
-#    --no-dev \
-#    --prefer-dist \
-#    --no-progress \
-#    --no-scripts \
-#    --ignore-platform-req=ext-simplexml \
-#    --ignore-platform-req=ext-fileinfo \
-#    --ignore-platform-req=ext-session \
-#    --ignore-platform-req=ext-tokenizer \
-#    --ignore-platform-req=ext-xmlreader \
-#    --ignore-platform-req=ext-xmlwriter \
-#    --ignore-platform-req=ext-intl \
-#    --ignore-platform-req=ext-dom \
-#    --ignore-platform-req=ext-xml
+# Clear composer cache to save space
+RUN composer clear-cache
 
-# Remove SSH keys after use for security
-RUN rm -rf /root/.ssh
-
-# ============================================
-# Stage 3: Production PHP runtime
-# ============================================
-FROM docker.io/library/php:${PHP_VERSION}-fpm-alpine
-
-# Install system dependencies
-RUN apk add --no-cache \
-    nginx \
-    supervisor \
-    postgresql-dev \
-    libzip-dev \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    freetype-dev \
-    oniguruma-dev \
-    icu-dev \
-    libxml2-dev \
-    curl \
-    bash \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) \
-        pdo_pgsql \
-        pgsql \
-        zip \
-        gd \
-        mbstring \
-        intl \
-        dom \
-        xml \
-        simplexml \
-        session \
-    && rm -rf /var/cache/apk/*
-
-# Install PHP extensions for production
-RUN docker-php-ext-enable opcache
-
-# Configure PHP for production (relative to podman-setup)
-COPY ./cachet/docker/php/php.ini /usr/local/etc/php/conf.d/cachet.ini
-COPY ./cachet/docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
-
-# Configure Nginx
-COPY ./cachet/docker/nginx/nginx.conf /etc/nginx/nginx.conf
-COPY ./cachet/docker/nginx/default.conf /etc/nginx/http.d/default.conf
-
-# Configure Supervisor
-COPY ./cachet/docker/supervisor/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Create application user
-RUN addgroup -g 1000 -S cachet && \
-    adduser -u 1000 -S cachet -G cachet
-
-# Set working directory
-WORKDIR /var/www/html
-
-# Copy application files (relative to podman-setup)
-COPY --chown=cachet:cachet ./cachet/. .
-
-# Copy composer dependencies from builder
-# Note: With symlink=false in composer.json, core is copied into vendor/cachethq/core
-COPY --from=composer --chown=cachet:cachet /app/vendor ./vendor
+# Remove .git folder to save space
+RUN rm -rf .git
 
 # Publish Cachet assets (config, views, and public assets)
 RUN php artisan vendor:publish --tag=cachet --force
 
 # Copy custom images (from build context) into the published vendor folder (overwrite default images)
-COPY ./cachet-configuration-files/images/ /var/www/html/public/vendor/cachethq/cachet/
+# build context is cachet-configuration-files, so images are in ./images/
+COPY ./images/ /var/www/html/public/vendor/cachethq/cachet/
 
 # Publish Livewire config and views
 RUN php artisan livewire:publish
@@ -156,10 +114,13 @@ RUN php artisan filament:assets
 # Create storage symlink for public uploads (banner, ecc.)
 RUN php artisan storage:link
 
+# Ensure migrations for database-backed drivers exist
+RUN php artisan cache:table || true
+RUN php artisan session:table || true
+RUN php artisan queue:table || true
+
 # Fix permissions AFTER artisan commands - PHP-FPM runs as www-data
-# Important: artisan commands may create files as cachet user, so we fix ownership
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 775 /var/www/html/storage \
+RUN chmod -R 775 /var/www/html/storage \
     && chmod -R 775 /var/www/html/bootstrap/cache
 
 # Create necessary directories
@@ -167,9 +128,25 @@ RUN mkdir -p /var/www/html/storage/framework/{sessions,views,cache} \
     && mkdir -p /var/www/html/storage/logs \
     && mkdir -p /var/log/supervisor \
     && mkdir -p /var/run/supervisor \
-    && chown -R www-data:www-data /var/www/html/storage \
-    && chown -R www-data:www-data /var/www/html/bootstrap/cache
+    && chown -R www-data:www-data /var/www/html
 
+# Clean up build dependencies
+RUN apk del -r --no-cache \
+    postgresql-dev \
+    libzip-dev \
+    libpng-dev \
+    libjpeg-turbo-dev \
+    freetype-dev \
+    oniguruma-dev \
+    icu-dev \
+    libxml2-dev \
+    autoconf \
+    g++ \
+    make \
+    git \
+    ca-certificates \
+    && rm -rf /var/cache/apk/*
+    
 # Expose port 80 for Nginx
 EXPOSE 80
 
@@ -178,4 +155,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD php artisan cachet:health || exit 1
 
 # Start supervisor
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+CMD ["sh", "-c", "until php artisan migrate --force; do echo 'Waiting for database...'; sleep 2; done && /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]
