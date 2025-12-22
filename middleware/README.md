@@ -10,7 +10,7 @@ Python Flask middleware that receives webhook notifications from Prometheus Aler
 - **Critical Targets**: Special logic for critical targets (force Major Outage on visible components)
 - **Smart Status Calculation**: Calculates visible component status by aggregating invisible component statuses
 - **Intelligent Incident Management**: Creates incidents only when visible component goes to Major Outage
-- **YAML Configuration**: Automatic component setup from Prometheus file with `setup.py`
+- **YAML Configuration**: Automatic component setup from Prometheus file with `setup-components.py`
 
 ## Architecture
 

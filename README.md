@@ -22,18 +22,7 @@ The middleware handles alert lifecycle (firing/resolved) and intelligently updat
 
 To deploy the infrastructure, ensure the following prerequisites are met:
 
-1. **Configured SSH Key**:
-   - The user must have an SSH key configured on their system.
-   - The key must be authorized to access private repositories on GitHub.
-
-2. **Add GitHub to known_hosts**:
-   - Run the following command to add GitHub's fingerprint to the `known_hosts` file:
-     ```bash
-     ssh-keyscan github.com >> ~/.ssh/known_hosts
-     ```
-   - This command should be executed inside the user's `.ssh` directory.
-
-3. **System Requirements**:
+1. **System Requirements**:
    - **Bash**: Ensure Bash is installed as the default shell.
    - **Podman**: Install Podman for container management.
    - **Podman-Compose**: Install Podman-Compose using the following commands to avoid issues with outdated versions:
@@ -143,7 +132,7 @@ nano middleware/config.json
 - `status_page_group`: Name of the group that will be created on the status page
 - `status_page_components`: Array of visible component names that belong to this group
 
-Each visible component referenced in your Prometheus labels must be mapped to a group in this configuration. The `setup.py` script will use this mapping to automatically create groups and organize components during initialization.
+Each visible component referenced in your Prometheus labels must be mapped to a group in this configuration. The `setup-components.py` script will use this mapping to automatically create groups and organize components during initialization.
 
 **Required Prometheus labels** for status page integration:
 
@@ -196,7 +185,6 @@ For local development (without HTTPS), ensure your `.env` is properly configured
 ENVIRONMENT=local
 CACHET_DOMAIN=localhost
 WEBHOOK_DOMAIN=localhost
-TRAEFIK_DOMAIN=localhost
 APP_ENV=local
 APP_DEBUG=true
 APP_URL=http://localhost:8080

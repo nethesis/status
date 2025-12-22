@@ -8,9 +8,6 @@ http:
         - websecure
       tls:
         certResolver: '{{ env "CERT_RESOLVER" | default "letsencrypt" }}'
-      middlewares:
-        - https-headers
-        - redirect-to-https
       {{ else }}
       entryPoints:
         - web
@@ -26,8 +23,9 @@ http:
         certResolver: '{{ env "CERT_RESOLVER" | default "letsencrypt" }}'
       middlewares:
         - webhook-auth
-        - redirect-to-https
       {{ else }}
       entryPoints:
         - web
+      middlewares:
+        - webhook-auth
       {{ end }}

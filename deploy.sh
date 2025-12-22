@@ -114,25 +114,22 @@ fi
 # Configure webhook authentication in Traefik middlewares
 echo ""
 echo "Configuring webhook authentication..."
-if [ -n "${WEBHOOK_USERNAME}" ] && [ -n "${WEBHOOK_PASSWORD}" ]; then
-    # Check if htpasswd is available
+if [ -n "${WEBHOOK_BASIC_AUTH}" ]; then
+    # Use the string specified in .env
+    sed -i "s|WEBHOOK_CREDENTIALS_PLACEHOLDER|${WEBHOOK_BASIC_AUTH}|g" traefik/dynamic/middlewares.yml
+    echo -e "${GREEN}✓${NC} Webhook authentication configured: ${WEBHOOK_BASIC_AUTH}"
+else
+    # Generate default authentication admin:admin
     if ! command -v htpasswd &> /dev/null; then
-        echo -e "${YELLOW}Warning: htpasswd not found. Installing apache2-utils...${NC}"
+        echo -e "${YELLOW}htpasswd not found. Installing apache2-utils...${NC}"
         sudo apt-get install -y apache2-utils || {
             echo -e "${RED}Error: Failed to install apache2-utils. Please install it manually.${NC}"
             exit 1
         }
     fi
-    
-    # Generate SHA hash for webhook credentials
-    WEBHOOK_HASH=$(htpasswd -nbs "${WEBHOOK_USERNAME}" "${WEBHOOK_PASSWORD}")
-    
-    # Update middlewares.yml with the generated hash
-    sed -i 's|.*WEBHOOK_CREDENTIALS_PLACEHOLDER.*|          - "'"${WEBHOOK_HASH}"'"|g' traefik/dynamic/middlewares.yml
-    
-    echo -e "${GREEN}✓${NC} Webhook authentication configured for user: ${WEBHOOK_USERNAME}"
-else
-    echo -e "${YELLOW}Warning: WEBHOOK_USERNAME or WEBHOOK_PASSWORD not set in .env${NC}"
+    DEFAULT_AUTH=$(htpasswd -nb admin admin | cut -d':' -f2)
+    sed -i "s|WEBHOOK_CREDENTIALS_PLACEHOLDER|admin:${DEFAULT_AUTH}|g" traefik/dynamic/middlewares.yml
+    echo -e "${YELLOW}Warning: WEBHOOK_BASIC_AUTH not set in .env. Using default admin:admin.${NC}"
 fi
 
 echo ""
@@ -214,8 +211,6 @@ echo "=========================================="
 echo "Starting Middleware, Initializing Components"
 echo "=========================================="
 
-fi
-
 # Start middleware container
 echo "Starting middleware container..."
 podman-compose up -d middleware
@@ -239,7 +234,7 @@ if [ $attempt -eq $max_attempts ]; then
     echo "If middleware keeps failing, check logs with: podman logs cachet-middleware"
 fi
 
-# Setup components (run setup.py) with user prompt
+# Setup components (run setup-components.py) with user prompt
 echo ""
 echo "Initializing Cachet components from Prometheus configuration..."
 if [ ! -f middleware/prometheus.yml ]; then
@@ -256,16 +251,16 @@ echo "  - Component groups: middleware/config.json"
 target_count=$(grep -c "status_page_alert: true" middleware/prometheus.yml || echo "0")
 echo "Found approximately ${target_count} targets with status_page_alert enabled"
 echo ""
-read -p "Do you want to run setup.py to create components? This will DELETE all existing components! (y/n) " -n 1 -r
+read -p "Do you want to run setup-components.py to create components? This will DELETE all existing components! (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Running setup.py inside middleware container..."
-    if podman exec cachet-middleware python3 /app/setup.py --file /app/prometheus.yml; then
+    echo "Running setup-components.py inside middleware container..."
+    if podman exec cachet-middleware python3 /app/setup-components.py --file /app/prometheus.yml; then
         echo -e "${GREEN}✓${NC} Components created successfully!"
     else
         echo -e "${RED}❌${NC} Failed to create components"
-        echo "You can run setup.py manually with:"
-        echo "  podman exec cachet-middleware python3 /app/setup.py --file /app/prometheus.yml"
+        echo "You can run setup-components.py manually with:"
+        echo "  podman exec cachet-middleware python3 /app/setup-components.py --file /app/prometheus.yml"
         exit 1
     fi
 else

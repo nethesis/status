@@ -30,7 +30,7 @@ WORKDIR /app
 # Copy application files
 COPY alerts-middleware.py .
 COPY healthcheck.py .
-COPY setup.py .
+COPY setup-components.py .
 
 # Make healthcheck script executable
 RUN chmod +x healthcheck.py

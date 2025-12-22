@@ -1,0 +1,6 @@
+http:
+  middlewares:
+    webhook-auth:
+      basicAuth:
+        users:
+          - "WEBHOOK_CREDENTIALS_PLACEHOLDER"
