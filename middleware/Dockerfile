@@ -1,5 +1,5 @@
 # Multi-stage build for smaller final image
-FROM python:3.14-slim as builder
+FROM python:3.14-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -29,8 +29,6 @@ WORKDIR /app
 
 # Copy application files
 COPY alerts-middleware.py .
-COPY config.json .
-COPY prometheus.yml .
 COPY healthcheck.py .
 COPY setup.py .
 

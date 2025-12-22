@@ -68,6 +68,11 @@ nano .env
 - `APP_KEY`
 - `CACHET_API_TOKEN`
 
+**Authentication:**
+The webhook endpoint is protected by Basic Auth. You can configure the credentials by setting the `WEBHOOK_BASIC_AUTH` environment variable in `.env`.
+The format is `user:hash`. You can generate the hash using `htpasswd -nb user password` or an online generator (BCrypt, MD5, SHA1).
+If not set, the default credentials are `admin:admin`.
+
 > **Note for rootless Podman and privileged ports (80/443):**
 > 
 > By default, non-root users cannot bind to ports below 1024 (such as 80 and 443). If you want to expose Traefik or other services directly on these ports in rootless mode, you must configure the following kernel parameter on your host system:

@@ -7,39 +7,6 @@ echo "=========================================="
 echo "Cachet Infrastructure Deployment"
 echo "=========================================="
 
-# Prepare Cachet repository
-echo ""
-
-echo "Preparing Cachet repository..."
-# Remove existing local cachet folder if present
-if [ -d "cachet" ]; then
-    echo "Removing existing cachet/ folder..."
-    rm -rf cachet
-fi
-
-# Copy SSH directory for Docker build context (for composer update in Dockerfile)
-SSH_BUILD_CONTEXT=".ssh"
-if [ -d "$SSH_BUILD_CONTEXT" ]; then
-    echo "Removing old .ssh from build context root..."
-    rm -rf "$SSH_BUILD_CONTEXT"
-fi
-echo "Copying ~/.ssh to project root for build context..."
-cp -r ~/.ssh "$SSH_BUILD_CONTEXT"
-
-# Clone Cachet repository
-echo "Cloning cachet repository..."
-git clone git@github.com:cachethq/cachet.git cachet || { echo "Error cloning cachet"; exit 1; }
-
-# Copy Dockerfile and docker folder into the new cachet folder
-cp cachet-configuration-files/Dockerfile cachet/Dockerfile
-cp -r cachet-configuration-files/docker cachet/
-
-# Overwrite TrustProxies.php in the existing directory
-cp cachet-configuration-files/proxy/TrustProxies.php cachet/app/Http/Middleware/TrustProxies.php
-
-# Copy AdminSeeder.php to the container to create admin user and API token
-cp cachet-configuration-files/token/AdminSeeder.php cachet/database/seeders/AdminSeeder.php
-
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -55,61 +22,28 @@ fi
 
 # Check if .env exists
 if [ ! -f .env ]; then
-    echo -e "${YELLOW}Warning: .env file not found${NC}"
-    echo "Copying .env.example to .env..."
-    cp .env.example .env
-    echo -e "${YELLOW}Please edit .env file with your configuration before proceeding${NC}"
-    echo "Press CTRL+C to exit and edit .env, or press Enter to continue..."
-    read
+    echo -e "${RED}Warning: .env file not found${NC}"
+    echo "Copy it from .env.example to .env"
+    exit 1
+fi
+
+# Check if middleware/config.json exists
+if [ ! -f middleware/config.json ]; then
+    echo -e "${RED}Warning: middleware/config.json file not found${NC}"
+    echo "Copy it from middleware/config.json.example to middleware/config.json"
+    exit 1
+fi
+
+
+# Check if middleware/prometheus.yml exists
+if [ ! -f middleware/prometheus.yml ]; then
+    echo -e "${RED}Warning: middleware/prometheus.yml file not found${NC}"
+    echo "Copy it from middleware/prometheus.yml.example to middleware/prometheus.yml"
+    exit 1
 fi
 
 # Load environment variables
 source .env
-
-# Auto-detect and set PODMAN_SOCKET in .env if not set or invalid
-detect_and_set_podman_socket() {
-    local socket_path=""
-    if [ "$EUID" -eq 0 ]; then
-        # Root context
-        socket_path="/run/podman/podman.sock"
-    else
-        # Rootless context
-        socket_path="/run/user/$(id -u)/podman/podman.sock"
-    fi
-
-    # If PODMAN_SOCKET is not set or is not the detected value, update .env
-    if ! grep -q "^PODMAN_SOCKET=" .env; then
-        echo "PODMAN_SOCKET=\"$socket_path\"" >> .env
-        export PODMAN_SOCKET="$socket_path"
-        echo -e "${GREEN}✓${NC} PODMAN_SOCKET set to $socket_path in .env"
-    else
-        current_socket=$(grep "^PODMAN_SOCKET=" .env | cut -d= -f2- | tr -d '"')
-        if [ "$current_socket" != "$socket_path" ]; then
-            sed -i "s|^PODMAN_SOCKET=.*|PODMAN_SOCKET=\"$socket_path\"|" .env
-            export PODMAN_SOCKET="$socket_path"
-            echo -e "${GREEN}✓${NC} PODMAN_SOCKET updated to $socket_path in .env"
-        else
-            export PODMAN_SOCKET="$current_socket"
-            echo -e "${GREEN}✓${NC} PODMAN_SOCKET already set correctly in .env"
-        fi
-    fi
-}
-
-detect_and_set_podman_socket
-
-# Check and start Podman rootless socket if needed
-if [ "$EUID" -ne 0 ] && [[ "$PODMAN_SOCKET" == /run/user/* ]]; then
-    echo "Checking Podman rootless socket..."
-    if ! systemctl --user is-active --quiet podman.socket; then
-        echo "Podman rootless socket is not active. Starting it..."
-        systemctl --user start podman.socket
-        sleep 2
-    fi
-    if ! systemctl --user is-active --quiet podman.socket; then
-        echo "Error: Podman rootless socket could not be started. Please check your user session and permissions."
-        exit 1
-    fi
-fi
 
 # Check required environment variables
 REQUIRED_VARS=("DB_PASSWORD")
@@ -142,19 +76,9 @@ fi
 
 # Check if podman-compose is available
 if ! command -v podman-compose &> /dev/null; then
-    echo -e "${YELLOW}podman-compose not found. Installing...${NC}"
-    pip3 install --user podman-compose
+    echo -e "${YELLOW}podman-compose not found. ${NC}"
+    exit 1
 fi
-
-# Create necessary directories
-echo "Creating necessary directories..."
-mkdir -p middleware/logs
-mkdir -p cachet/storage/{app,framework,logs}
-mkdir -p cachet/storage/framework/{sessions,views,cache}
-
-# Set proper permissions
-chmod -R 755 middleware/logs
-chmod -R 755 cachet/storage
 
 # Generate APP_KEY if not present in podman-setup/.env
 echo ""
@@ -177,15 +101,14 @@ else
     echo -e "${GREEN}✓${NC} APP_KEY already exists in .env"
 fi
 
-# Ensure cachet/.env exists (used for default values not overridden by ENV vars)
+# Ensure .env exists (used for default values not overridden by ENV vars)
 echo ""
-echo "Checking cachet/.env file..."
-if [ ! -f cachet/.env ]; then
-    echo -e "${YELLOW}Warning: cachet/.env not found, copying from cachet/.env.example${NC}"
-    cp cachet/.env.example cachet/.env
-    echo -e "${GREEN}✓${NC} cachet/.env created from example"
+echo "Checking .env file..."
+if [ ! -f .env ]; then
+    echo -e "${RED}Warning: .env not found. Copy it from .env.example...${NC}"
+    exit 1
 else
-    echo -e "${GREEN}✓${NC} cachet/.env exists"
+    echo -e "${GREEN}✓${NC} .env exists"
 fi
 
 # Configure webhook authentication in Traefik middlewares
@@ -217,23 +140,6 @@ echo "=========================================="
 echo "Starting deployment..."
 echo "=========================================="
 
-# Build and start services
-echo "Building images..."
-
-# Check that .ssh exists in build context before build
-if [ ! -d ".ssh" ]; then
-    echo "Error: .ssh directory not found in build context root! Aborting build."
-    exit 1
-fi
-
-
-podman-compose build traefik postgres cachet
-
-# Remove SSH directory from build context after build for security
-if [ -d "$SSH_BUILD_CONTEXT" ]; then
-    echo "Removing .ssh from build context root after build..."
-    rm -rf "$SSH_BUILD_CONTEXT"
-fi
 
 echo ""
 echo "Starting core services (excluding middleware)..."
@@ -243,11 +149,6 @@ podman-compose up -d --no-deps traefik postgres cachet
 echo ""
 echo "Waiting for database to be ready..."
 sleep 10
-
-# Run Cachet migrations and setup
-echo ""
-echo "Setting up Cachet database..."
-podman-compose exec -T cachet php artisan migrate --force
 
 # Run the AdminSeeder to create admin user and relative token for APIs
 echo "Running AdminSeeder to create admin user and API token..."
@@ -278,11 +179,6 @@ echo ""
 echo "Clearing and optimizing cache..."
 podman-compose exec -T cachet php artisan optimize:clear
 podman-compose exec -T cachet php artisan optimize
-
-echo ""
-echo "Fixing permissions (post-startup)..."
-podman-compose exec -T cachet chown -R www-data:www-data /var/www/html/bootstrap/cache /var/www/html/storage
-podman-compose exec -T cachet chmod -R 775 /var/www/html/bootstrap/cache /var/www/html/storage
 
 # Fix Traefik acme.json permissions for Let's Encrypt when deploying with rootless Podman
 echo ""
@@ -315,18 +211,9 @@ fi
 # === Build and Start Middleware and Setup Components ===
 echo ""
 echo "=========================================="
-echo "Building and Starting Middleware, Initializing Components"
+echo "Starting Middleware, Initializing Components"
 echo "=========================================="
 
-# Build middleware image (after token is generated)
-echo "Building middleware image..."
-podman-compose build middleware
-
-# Check that the middleware image exists after build
-if ! podman images | grep -q "middleware"; then
-    echo -e "${RED}Error: Middleware image not found after build. Aborting.${NC}"
-    echo "Check that the 'middleware' service has a correct build: section in your docker-compose.yml."
-    exit 1
 fi
 
 # Start middleware container

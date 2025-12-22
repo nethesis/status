@@ -26,7 +26,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=en_US.UTF-8 --lc-ctype=en_US.UTF-8"
     volumes:
-      - cachet-db:/var/lib/postgresql/data
+      - cachet-db:/var/lib/postgresql/
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-cachet}"]
       interval: 10s
@@ -35,11 +35,7 @@ services:
 
   # Cachet Application
   cachet:
-    build:
-      context: .
-      dockerfile: cachet/Dockerfile
-      args:
-        - PHP_VERSION=${PHP_VERSION:-8.3}
+    image: ghcr.io/nethesis/cachet-status-page:${CACHET_TAG:-latest}
     container_name: cachet-app
     restart: unless-stopped
     networks:
@@ -81,22 +77,6 @@ services:
     volumes:
       - cachet-storage:/var/www/html/storage
       - ./cachet/.env:/var/www/html/.env:ro
-    labels:
-      - "traefik.enable=true"
-      # Local
-      - "traefik.http.routers.cachet-local.rule=Host(`${CACHET_DOMAIN:-localhost}`)"
-      - "traefik.http.routers.cachet-local.entrypoints=web"
-      - "traefik.http.routers.cachet-local.service=cachet"
-      # Production
-      - "traefik.http.routers.cachet.rule=Host(`${CACHET_DOMAIN:-localhost}`)"
-      - "traefik.http.routers.cachet.entrypoints=websecure"
-      - "traefik.http.routers.cachet.tls=true"
-      - "traefik.http.routers.cachet.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
-      - "traefik.http.routers.cachet.middlewares=https-headers@file"
-      - "traefik.http.routers.cachet.middlewares=redirect-to-https@file"
-      - "traefik.http.routers.cachet.service=cachet"
-      # Service
-      - "traefik.http.services.cachet.loadbalancer.server.port=80"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost/"]
       interval: 30s
@@ -106,9 +86,7 @@ services:
 
   # Python Middleware - Webhook Handler
   middleware:
-    build:
-      context: ./middleware
-      dockerfile: Dockerfile
+    image: ghcr.io/nethesis/middleware-status-page:${MIDDLEWARE_TAG:-latest}
     container_name: cachet-middleware
     restart: unless-stopped
     networks:
@@ -119,33 +97,15 @@ services:
     environment:
       # Cachet API configuration
       - CACHET_API_URL=${CACHET_API_URL:-http://cachet/api/v1}
-      - CACHET_API_TOKEN=${CACHET_API_TOKEN}
+      - CACHET_API_TOKEN=${CACHET_API_TOKEN:-secret}
       # Python app settings
       - FLASK_ENV=production
       - PYTHONUNBUFFERED=1
-      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - ENVIRONMENT=${ENVIRONMENT:-local}
     volumes:
       # Mount config files as read-only
-      - ./middleware/config.json:/app/config.json:ro
-      - ./middleware/prometheus.yml:/app/prometheus.yml:ro
-    labels:
-      - "traefik.enable=true"
-      # Local
-      - "traefik.http.routers.webhook-local.rule=Host(`${WEBHOOK_DOMAIN:-localhost}`) && Path(`/webhook`)"
-      - "traefik.http.routers.webhook-local.entrypoints=web"
-      - "traefik.http.routers.webhook-local.service=middleware"
-      # Production
-      - "traefik.http.routers.webhook.rule=Host(`${WEBHOOK_DOMAIN:-localhost}`) && Path(`/webhook`)"
-      - "traefik.http.routers.webhook.entrypoints=websecure"
-      - "traefik.http.routers.webhook.tls=true"
-      - "traefik.http.routers.webhook.tls.certresolver=${CERT_RESOLVER:-letsencrypt}"
-      - "traefik.http.routers.webhook.middlewares=webhook-auth@file"
-      - "traefik.http.routers.webhook.middlewares=redirect-to-https@file"
-      - "traefik.http.routers.webhook.service=middleware"
-      # Service definition
-      - "traefik.http.services.middleware.loadbalancer.server.port=5000"
-      - "traefik.http.services.middleware.loadbalancer.healthcheck.path=/health"
-      - "traefik.http.services.middleware.loadbalancer.healthcheck.interval=30s"
+      - ./middleware/config.json:/app/config.json:ro,z
+      - ./middleware/prometheus.yml:/app/prometheus.yml:ro,z
     healthcheck:
       test: ["CMD", "python3", "/app/healthcheck.py"]
       interval: 30s
@@ -164,16 +124,16 @@ services:
       - "${HTTP_PORT:-8080}:80"     # HTTP entrypoint
       - "${HTTPS_PORT:-8443}:443"   # HTTPS entrypoint
     volumes:
-      - ${PODMAN_SOCKET}:/var/run/docker.sock:ro,z  # Podman socket (set PODMAN_SOCKET in .env)
-      - ./traefik/traefik.${ENVIRONMENT:-production}.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - ./traefik/traefik.${ENVIRONMENT:-local}.yml:/etc/traefik/traefik.yml:ro,z
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro,z
       - traefik-certs:/letsencrypt
     environment:
       - TZ=${TZ:-Europe/Rome}
-      - ENVIRONMENT=${ENVIRONMENT:-production}
-    labels:
-      - "traefik.enable=true"
-
+      - ENVIRONMENT=${ENVIRONMENT:-local}
+      - CACHET_DOMAIN=${CACHET_DOMAIN:-localhost}
+      - WEBHOOK_DOMAIN=${WEBHOOK_DOMAIN:-localhost}
+      - CERT_RESOLVER=${CERT_RESOLVER:-letsencrypt}
+      - WEBHOOK_BASIC_AUTH=${WEBHOOK_BASIC_AUTH}
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 10s
