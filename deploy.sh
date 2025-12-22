@@ -226,7 +226,8 @@ if [ ! -d ".ssh" ]; then
     exit 1
 fi
 
-podman-compose build
+
+podman-compose build traefik postgres cachet
 
 # Remove SSH directory from build context after build for security
 if [ -d "$SSH_BUILD_CONTEXT" ]; then
@@ -305,11 +306,23 @@ else
     echo -e "${RED}Error: $TRAEFIK_VOLUME_NAME volume not found!${NC}"
 fi
 
-# === Start Middleware and Setup Components ===
+
+# === Build and Start Middleware and Setup Components ===
 echo ""
 echo "=========================================="
-echo "Starting Middleware and Initializing Components"
+echo "Building and Starting Middleware, Initializing Components"
 echo "=========================================="
+
+# Build middleware image (after token is generated)
+echo "Building middleware image..."
+podman-compose build middleware
+
+# Check that the middleware image exists after build
+if ! podman images | grep -q "middleware"; then
+    echo -e "${RED}Error: Middleware image not found after build. Aborting.${NC}"
+    echo "Check that the 'middleware' service has a correct build: section in your docker-compose.yml."
+    exit 1
+fi
 
 # Start middleware container
 echo "Starting middleware container..."
