@@ -65,8 +65,8 @@ nano .env
 ```
 
 **Leave empty (auto-generated):**
-- `APP_KEY` - Generated during deployment
-- `CACHET_API_TOKEN` - Generated during setup
+- `APP_KEY`
+- `CACHET_API_TOKEN`
 
 > **Note for rootless Podman and privileged ports (80/443):**
 > 
@@ -207,44 +207,19 @@ Run the deployment script:
 ./deploy.sh
 ```
 
-This script will:
+The script will automatically:
 1. Validate configuration
-2. Prepare all application sources and dependencies automatically (no manual cloning required)
-3. Generate Laravel `APP_KEY` automatically
+2. Prepare all application sources and dependencies (no manual cloning required)
+3. Generate the Laravel `APP_KEY` automatically
 4. Configure webhook authentication
 5. Build container images
-6. Start Traefik, PostgreSQL, and Cachet services
+6. Start Traefik, PostgreSQL, Cachet and Middleware services
 7. Run database migrations
+8. Create the admin user and generate the API token
+9. Automatically set up components using Prometheus/config.json if requested
+10. Verify the webhook endpoint
 
-**Note**: The middleware service will NOT start yet (requires API token first).
-
-### 7. Complete Setup
-
-Run the interactive setup script:
-
-```bash
-./setup-cachet.sh
-```
-
-**The script will guide you through:**
-
-**STEP 1 - Create Admin User:**
-- Enter username, email, and password for Cachet admin
-- Skip if already created
-
-**STEP 2 - Generate API Token:**
-1. Login with your admin credentials on the Cachet Status Page (```https://your-domain.net/dashboard/login```)
-3. Navigate to: Settings → Manage API Keys
-4. Click "New API Key"
-5. Name: `Middleware API Token`
-6. Select all abilities
-7. Copy the generated token (format: `1|abc123...`)
-8. Paste token when prompted by the script
-
-**STEP 3-5 (Automatic):**
-- Start middleware service
-- Initialize components from `prometheus.yml`
-- Verify webhook endpoint
+At the end of the process, the Cachet status page and middleware will be fully operational.
 
 ---
 
