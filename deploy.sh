@@ -251,7 +251,7 @@ podman-compose exec -T cachet php artisan migrate --force
 
 # Run the AdminSeeder to create admin user and relative token for APIs
 echo "Running AdminSeeder to create admin user and API token..."
-adminseeder_output=$(podman-compose exec -T cachet php artisan db:seed --class=AdminSeeder 2>&1)
+adminseeder_output=$(podman-compose exec -T cachet php artisan db:seed --class=AdminSeeder --force 2>&1)
 echo "--- AdminSeeder output ---"
 echo "$adminseeder_output"
 echo "-------------------------"
