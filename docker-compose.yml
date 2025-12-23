@@ -126,7 +126,7 @@ services:
     volumes:
       - ./traefik/traefik.${ENVIRONMENT:-local}.yml:/etc/traefik/traefik.yml:ro,z
       - ./traefik/dynamic:/etc/traefik/dynamic:ro,z
-      - traefik-certs:/letsencrypt
+      - traefik-certs:/letsencrypt:z
     environment:
       - TZ=${TZ:-Europe/Rome}
       - ENVIRONMENT=${ENVIRONMENT:-local}

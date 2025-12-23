@@ -165,18 +165,7 @@ prometheus_targets:
 
 **Important**: Make sure all component names used in `status_page_component` labels are also defined in the `groups_configuration` section of `middleware/config.json`.
 
-### 4. Configure Traefik Middlewares
-
-Copy the middlewares configuration for webhook authentication:
-
-```bash
-cp traefik/dynamic/middlewares.yml.example traefik/dynamic/middlewares.yml
-nano traefik/dynamic/middlewares.yml
-```
-
-**Note**: The `webhook-auth` section will be automatically configured by `deploy.sh` from your `.env` credentials.
-
-### 5. Local Development Configuration
+### 4. Local Development Configuration
 
 **⚠️ Important for Local Deployment:**
 

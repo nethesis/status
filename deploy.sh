@@ -114,22 +114,26 @@ fi
 # Configure webhook authentication in Traefik middlewares
 echo ""
 echo "Configuring webhook authentication..."
-if [ -n "${WEBHOOK_BASIC_AUTH}" ]; then
-    # Use the string specified in .env
-    sed -i "s|WEBHOOK_CREDENTIALS_PLACEHOLDER|${WEBHOOK_BASIC_AUTH}|g" traefik/dynamic/middlewares.yml
-    echo -e "${GREEN}✓${NC} Webhook authentication configured: ${WEBHOOK_BASIC_AUTH}"
+if [ ! -f traefik/dynamic/middlewares.yml ]; then
+    echo -e "${YELLOW}Warning: traefik/dynamic/middlewares.yml not found. Skipping webhook configuration.${NC}"
 else
-    # Generate default authentication admin:admin
-    if ! command -v htpasswd &> /dev/null; then
-        echo -e "${YELLOW}htpasswd not found. Installing apache2-utils...${NC}"
-        sudo apt-get install -y apache2-utils || {
-            echo -e "${RED}Error: Failed to install apache2-utils. Please install it manually.${NC}"
-            exit 1
-        }
+    if [ -n "${WEBHOOK_BASIC_AUTH}" ]; then
+        # Use the string specified in .env
+        sed -i "s|WEBHOOK_CREDENTIALS_PLACEHOLDER|${WEBHOOK_BASIC_AUTH}|g" traefik/dynamic/middlewares.yml
+        echo -e "${GREEN}✓${NC} Webhook authentication configured: ${WEBHOOK_BASIC_AUTH}"
+    else
+        # Generate default authentication admin:admin
+        if ! command -v htpasswd &> /dev/null; then
+            echo -e "${YELLOW}htpasswd not found. Installing apache2-utils...${NC}"
+            sudo apt-get install -y apache2-utils || {
+                echo -e "${RED}Error: Failed to install apache2-utils. Please install it manually.${NC}"
+                exit 1
+            }
+        fi
+        DEFAULT_AUTH=$(htpasswd -nb admin admin | cut -d':' -f2)
+        sed -i "s|WEBHOOK_CREDENTIALS_PLACEHOLDER|admin:${DEFAULT_AUTH}|g" traefik/dynamic/middlewares.yml
+        echo -e "${YELLOW}Warning: WEBHOOK_BASIC_AUTH not set in .env. Using default admin:admin.${NC}"
     fi
-    DEFAULT_AUTH=$(htpasswd -nb admin admin | cut -d':' -f2)
-    sed -i "s|WEBHOOK_CREDENTIALS_PLACEHOLDER|admin:${DEFAULT_AUTH}|g" traefik/dynamic/middlewares.yml
-    echo -e "${YELLOW}Warning: WEBHOOK_BASIC_AUTH not set in .env. Using default admin:admin.${NC}"
 fi
 
 echo ""
@@ -144,8 +148,8 @@ echo -e "${YELLOW}Note: Middleware will be started later after API token configu
 podman-compose up -d --no-deps traefik postgres cachet
 
 echo ""
-echo "Waiting for database to be ready..."
-sleep 10
+echo "Waiting for services to be ready..."
+sleep 15
 
 # Run the AdminSeeder to create admin user and relative token for APIs
 echo "Running AdminSeeder to create admin user and API token..."
@@ -177,34 +181,6 @@ echo "Clearing and optimizing cache..."
 podman-compose exec -T cachet php artisan optimize:clear
 podman-compose exec -T cachet php artisan optimize
 
-# Fix Traefik acme.json permissions for Let's Encrypt when deploying with rootless Podman
-echo ""
-echo "Checking traefik-certs volume permissions..."
-PROJECT_PREFIX=$(basename "$PWD" | tr -d '\n' | tr -c 'a-zA-Z0-9' '_')
-PROJECT_PREFIX="${PROJECT_PREFIX%_}"
-TRAEFIK_VOLUME_NAME="${PROJECT_PREFIX}_traefik-certs"
-
-TRAEFIK_CERTS_PATH=""
-if podman volume inspect "$TRAEFIK_VOLUME_NAME" &>/dev/null; then
-    TRAEFIK_CERTS_PATH=$(podman volume inspect "$TRAEFIK_VOLUME_NAME" --format '{{ .Mountpoint }}')
-    if [ -n "$TRAEFIK_CERTS_PATH" ]; then
-        mkdir -p "$TRAEFIK_CERTS_PATH"
-        # Fix permissions for acme.json if exists, else create it
-        if [ ! -f "$TRAEFIK_CERTS_PATH/acme.json" ]; then
-            touch "$TRAEFIK_CERTS_PATH/acme.json"
-        fi
-        chmod 600 "$TRAEFIK_CERTS_PATH/acme.json"
-        # Change owner to current user if running rootless
-        if [ "$EUID" -ne 0 ]; then
-            chown $(id -u):$(id -g) "$TRAEFIK_CERTS_PATH/acme.json"
-        fi
-        echo -e "${GREEN}✓${NC} $TRAEFIK_VOLUME_NAME/acme.json permissions set (600, user: $(id -u))"
-    fi
-else
-    echo -e "${RED}Error: $TRAEFIK_VOLUME_NAME volume not found!${NC}"
-fi
-
-
 # === Build and Start Middleware and Setup Components ===
 echo ""
 echo "=========================================="
@@ -220,7 +196,7 @@ echo "Waiting for middleware to become healthy..."
 max_attempts=12
 attempt=0
 while [ $attempt -lt $max_attempts ]; do
-    if podman ps --filter label=io.podman.compose.project=podman-setup --format "{{.Names}} {{.Status}}" | grep -q "cachet-middleware.*healthy"; then
+    if podman ps --filter label=io.podman.compose.project=status --format "{{.Names}} {{.Status}}" | grep -q "cachet-middleware.*healthy"; then
         echo -e "${GREEN}✓${NC} Middleware is healthy"
         break
     fi
@@ -230,7 +206,7 @@ while [ $attempt -lt $max_attempts ]; do
 done
 if [ $attempt -eq $max_attempts ]; then
     echo -e "${YELLOW}⚠${NC} Middleware is running but healthcheck not confirmed"
-    echo "You can check status with: podman ps --filter label=io.podman.compose.project=podman-setup"
+    echo "You can check status with: podman ps --filter label=io.podman.compose.project=status"
     echo "If middleware keeps failing, check logs with: podman logs cachet-middleware"
 fi
 
@@ -267,26 +243,6 @@ else
     echo -e "${YELLOW}⚠${NC} Component setup skipped by user."
 fi
 
-# Verify webhook endpoint
-echo ""
-echo "Verifying webhook endpoint..."
-webhook_url="http://localhost:${HTTP_PORT:-8080}/webhook"
-response=$(curl -s -o /dev/null -w "%{http_code}" \
-    -u "${WEBHOOK_USERNAME}:${WEBHOOK_PASSWORD}" \
-    -X POST \
-    -H "Content-Type: application/json" \
-    -d '{"test":"setup-verification"}' \
-    "$webhook_url" 2>/dev/null || echo "000")
-if [ "$response" = "200" ]; then
-    echo -e "${GREEN}✓${NC} Webhook endpoint is working correctly!"
-    echo "Credentials: ${WEBHOOK_USERNAME}:${WEBHOOK_PASSWORD}"
-else
-    echo -e "${YELLOW}⚠${NC} Webhook test returned HTTP $response"
-    echo "This might be normal if middleware is still starting up"
-    echo "You can test manually with:"
-    echo "  curl -u '${WEBHOOK_USERNAME}:${WEBHOOK_PASSWORD}' -X POST $webhook_url"
-fi
-
 # Final summary
 echo ""
 echo "=========================================="
@@ -295,5 +251,5 @@ echo "=========================================="
 echo "Your Cachet status page is now available!"
 echo "  📊 Status Page:      ${APP_URL}"
 echo "  🔧 Manager Login:    ${APP_URL}/dashboard/login"
-echo "  📡 Webhook:          http://${APP_URL}/webhook"
+echo "  📡 Webhook:          ${APP_URL}/webhook"
 echo ""

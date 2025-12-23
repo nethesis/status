@@ -1,0 +1,6 @@
+http:
+  middlewares:
+    webhook-auth:
+      basicAuth:
+        users:
+          - '{{ env "WEBHOOK_BASIC_AUTH" | default "admin:$apr1$cD4Mrtmi$JhZyfPTMuRY7yISp0b31i1" }}'
