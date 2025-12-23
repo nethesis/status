@@ -74,11 +74,16 @@ def parse_targets_from_prometheus(prometheus_config, component_to_group_map):
             
         for target_group in job_targets:
             if not isinstance(target_group, dict):
+                print(f" ⚠️  Warning: Skipping invalid target group in job '{job_name}'")
                 continue
             
             # Extract targets
             targets = target_group.get('targets', [])
             labels = target_group.get('labels', {})
+
+            if not labels:
+                print(f" ⚠️  Warning: Skipping target group {target_group} in job '{job_name}' - missing labels")
+                continue
             
             # Check if status_page_alert exists and is true
             status_page_alert = labels.get('status_page_alert', False)
@@ -345,20 +350,30 @@ def main():
         action='store_true',
         help='Only create components and component groups, without deleting existing ones'
     )
+    parser.add_argument(
+        '--dry-run',
+        action='store_true',
+        help='Parse configuration and report stats without creating or deleting any resources'
+    )
     args = parser.parse_args()
     
     yaml_file = args.file
     just_delete = args.just_delete
     just_create = args.just_create
+    dry_run = args.dry_run
     
     # Validate mutually exclusive options
     if just_delete and just_create:
         print("❌ Error: Cannot specify both --just-delete and --just-create")
         sys.exit(1)
     
+    if dry_run and (just_delete or just_create):
+        print("❌ Error: --dry-run cannot be used with --just-delete or --just-create")
+        sys.exit(1)
+    
     # Determine which phases to execute
-    should_delete = just_delete or not just_create
-    should_create = just_create or not just_delete
+    should_delete = (just_delete or not just_create) and not dry_run
+    should_create = (just_create or not just_delete) or dry_run
     
     # Validate file extension
     if not yaml_file.endswith('.yml') and not yaml_file.endswith('.yaml'):
@@ -380,7 +395,10 @@ def main():
         print("❌ Error: CACHET_API_URL and CACHET_API_TOKEN must be defined in .env file")
         sys.exit(1)
     
-    print(f"\n🌐 Connecting to CachetHQ: {api_url}")
+    if dry_run:
+        print(f"\n🧪 DRY RUN MODE - No resources will be created or deleted")
+    else:
+        print(f"\n🌐 Connecting to CachetHQ: {api_url}")
     print("=" * 60)
     
     # Phase 1: Delete existing components and component groups
@@ -418,10 +436,15 @@ def main():
         print("\n👻 Creating Invisible Components (one per target)...")
         invisible_components_created = 0
         for component in invisible_components:
-            component_id = create_invisible_component(api_url, api_token, component)
-            if component_id:
+            if dry_run:
                 invisible_components_created += 1
-            time.sleep(1.5)
+                critical_indicator = " [CRITICAL]" if component.get('critical', False) else ""
+                print(f"✓ Invisible component created: {component['name']}{critical_indicator}")
+            else:
+                component_id = create_invisible_component(api_url, api_token, component)
+                if component_id:
+                    invisible_components_created += 1
+                time.sleep(1.5)
         
         # Extract unique component groups from the mapping
         unique_groups = set()
@@ -441,10 +464,14 @@ def main():
         print("\n📦 Creating Component Groups...")
         group_id_mapping = {}
         for group_name in unique_groups:
-            group_id = create_component_group(api_url, api_token, group_name)
-            if group_id:
-                group_id_mapping[group_name] = group_id
-            time.sleep(1.5)
+            if dry_run:
+                group_id_mapping[group_name] = 1  # Dummy ID for dry-run
+                print(f"✓ Component Group created: {group_name}")
+            else:
+                group_id = create_component_group(api_url, api_token, group_name)
+                if group_id:
+                    group_id_mapping[group_name] = group_id
+                time.sleep(1.5)
         
         # Create visible components
         print("\n🔧 Creating Visible Components...")
@@ -461,16 +488,23 @@ def main():
                 continue
             
             group_id = group_id_mapping[group_name]
-            component_id = create_visible_component(api_url, api_token, component_name, group_id)
-            if component_id:
-                visible_component_ids[component_name] = component_id
-            time.sleep(1.5)
+            if dry_run:
+                visible_component_ids[component_name] = 1  # Dummy ID for dry-run
+                print(f"✓ Visible component created: {component_name}")
+            else:
+                component_id = create_visible_component(api_url, api_token, component_name, group_id)
+                if component_id:
+                    visible_component_ids[component_name] = component_id
+                time.sleep(1.5)
         
         print("\n" + "=" * 60)
-        print("✅ Setup completed!")
-        print(f"📊 Invisible components created: {invisible_components_created}")
-        print(f"📊 Component Groups created: {len(group_id_mapping)}")
-        print(f"📊 Visible components created: {len(visible_component_ids)}")
+        if dry_run:
+            print("✅ Dry run completed! The following would be created:")
+        else:
+            print("✅ Setup completed!")
+        print(f"📊 Invisible components: {invisible_components_created}")
+        print(f"📊 Component Groups: {len(group_id_mapping)}")
+        print(f"📊 Visible components: {len(visible_component_ids)}")
 
 if __name__ == "__main__":
     main()
