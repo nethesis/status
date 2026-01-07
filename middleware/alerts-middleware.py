@@ -483,6 +483,28 @@ def log_request_details(req):
     )
     print(log_line)
 
+def sort_alerts_for_processing(alerts):
+    """
+    Sort alerts for processing:
+    - First, all 'resolved' alerts, ordered by endsAt (oldest first)
+    - Then, all 'firing' alerts, ordered by startsAt (oldest first)
+    - Alerts with unknown status are left at the end, in original order
+    """
+    def parse_time(s):
+        try:
+            return datetime.fromisoformat(s.replace('Z', '+00:00'))
+        except Exception:
+            return datetime.max
+
+    resolved = [a for a in alerts if a.get('status') == 'resolved']
+    firing = [a for a in alerts if a.get('status') == 'firing']
+    other = [a for a in alerts if a.get('status') not in ('resolved', 'firing')]
+
+    resolved_sorted = sorted(resolved, key=lambda a: parse_time(a.get('endsAt', '9999-12-31T23:59:59Z')))
+    firing_sorted = sorted(firing, key=lambda a: parse_time(a.get('startsAt', '9999-12-31T23:59:59Z')))
+
+    return resolved_sorted + firing_sorted + other
+
 @app.route("/health", methods=["GET"])
 def health():
     """Health check endpoint for container orchestration and load balancers."""
@@ -495,13 +517,19 @@ def webhook():
     record_memory()
     data = request.json
     
-    for alert in data.get("alerts", []):
+    alerts = data.get("alerts", [])
+    if len(alerts) > 1:
+        alerts = sort_alerts_for_processing(alerts)
+        logger.info(f"Sorted {len(alerts)} alerts for processing order.")
+    for alert in alerts:
         labels = alert.get("labels", {})
         instance = labels.get("instance")
         alertname = labels.get("alertname")
         status_page_component = labels.get("status_page_component")
         status_page_alert = labels.get("status_page_alert")
         status = alert["status"]
+        
+        logger.info(f"Processing alert in state '{status}' with startsAt: {alert.get('startsAt')} and endsAt: {alert.get('endsAt')}")
         
         if not status_page_alert:
             logger.info(f"Alert '{alertname}' for instance '{instance}' has status_page_alert != true. Ignoring.")
