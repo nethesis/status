@@ -25,12 +25,7 @@ To deploy the infrastructure, ensure the following prerequisites are met:
 1. **System Requirements**:
    - **Bash**: Ensure Bash is installed as the default shell.
    - **Podman**: Install Podman for container management.
-   - **Podman-Compose**: Install Podman-Compose using the following commands to avoid issues with outdated versions:
-     ```bash
-     sudo curl -L https://raw.githubusercontent.com/containers/podman-compose/main/podman_compose.py -o /usr/local/bin/podman-compose
-     sudo chmod +x /usr/local/bin/podman-compose
-     ```
-     > **Note**: The version available via `apt` (1.0.6) is outdated and contains bugs related to volume mounting.
+   - **Podman-Compose**: Install Podman-Compose. Version must be greater than 1.0.6 as version 1.0.6 is outdated and contains bugs related to volume mounting.
    - **Python 3**: Ensure Python 3 and pip3 are installed.
    - **curl**: Required for testing webhook endpoints.
    - **htpasswd**: Installable via `apache2-utils`, used for HTTP authentication.
@@ -38,7 +33,41 @@ To deploy the infrastructure, ensure the following prerequisites are met:
    - **systemctl**: Required for managing the Podman rootless socket (systemd-based systems).
    - **sed**, **grep**, **awk**: Standard utilities for file and string manipulation.
 
-By following these steps and ensuring the required tools are installed, you can successfully deploy the infrastructure and complete the setup process.
+## Manual Deployment Steps
+
+Manual steps to deploy on **Fedora 42**:
+
+- If the machines does not have enough RAM, create a swapfile:
+  ```
+  btrfs filesystem mkswapfile --size 2G /swap
+  swapon  /swap
+  ```
+
+  Then add it to /etc/fstab:
+  ```
+  /swap  none  swap  defaults  0  0
+  ```
+- Install required packages:
+  ```
+  dnf install git podman-compose && dnf update
+  ```
+- Create a dedicated user for running the containers:
+  ```
+  useradd cachet -m -s /bin/bash
+  loginctl enable-linger cachet
+  echo 'net.ipv4.ip_unprivileged_port_start=80' > /etc/sysctl.d/99-podman.conf
+  sysctl -p /etc/sysctl.d/99-podman.conf
+  ```
+- Switch to the new user and set up SSH keys for GitHub:
+  ```
+  sudo su - cachet
+  mkdir -p ~/.ssh/authorized_keys
+  curl https://github.com/<username>.keys >> .ssh/authorized_keys
+  chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys
+  git clone git@github.com:nethesis/status.git
+  cd status
+  ```
+  Follow the Quick Start instructions below from this point.
 
 ---
 
@@ -62,27 +91,6 @@ The webhook endpoint is protected by Basic Auth. You can configure the credentia
 The format is `user:hash`. You can generate the hash using `htpasswd -nb user password` or an online generator (BCrypt, MD5, SHA1).
 If not set, the default credentials are `admin:admin`.
 
-> **Note for rootless Podman and privileged ports (80/443):**
-> 
-> By default, non-root users cannot bind to ports below 1024 (such as 80 and 443). If you want to expose Traefik or other services directly on these ports in rootless mode, you must configure the following kernel parameter on your host system:
-> 
-> ```bash
-> sudo sysctl net.ipv4.ip_unprivileged_port_start=80
-> ```
-> 
-> To make this change persistent after reboot, add this line to `/etc/sysctl.conf`:
-> 
-> ```
-> net.ipv4.ip_unprivileged_port_start=80
-> ```
-> and apply with:
-> 
-> ```bash
-> sudo sysctl -p
-> ```
-> 
-> **Do not set this in any project file (.env, docker-compose.yml, etc): it must be configured at the OS level.**
-
 ### 2. Configure Prometheus Targets
 
 Copy the example configuration and edit with your infrastructure details:
@@ -91,6 +99,21 @@ Copy the example configuration and edit with your infrastructure details:
 cp middleware/prometheus.yml.example middleware/prometheus.yml
 nano middleware/prometheus.yml
 ```
+
+For a production deployment use prometheus config from [private repository](https://github.com/nethesis/metrics-deploy/blob/master/ansible/group_vars/all/prometheus.yml).
+
+
+**Required Prometheus labels** for status page integration:
+
+Your Prometheus targets configuration must include these custom labels:
+
+- **`status_page_alert`** (required): Set to `true` to enable monitoring for this target
+- **`status_page_component`** (required): Name(s) of visible component(s) affected by this target (comma-separated for multiple)
+- **`status_page_critical_target`** (optional): Set to `true` to mark target as critical. When a critical target fails, the entire visible component is set to major outage regardless of other targets' status. Default: `false`
+
+See `prometheus.yml.example` for usage examples.
+
+**Important**: Make sure all component names used in `status_page_component` labels are also defined in the `groups_configuration` section of `middleware/config.json`.
 
 ### 3. Configure Component Groups
 
@@ -101,69 +124,11 @@ cp middleware/config.json.example middleware/config.json
 nano middleware/config.json
 ```
 
-**Configure the `groups_configuration` section:**
-
-```json
-{
-    "new_incident_name": "System %s is experiencing issues",
-    "new_incident_message": "We are investigating an issue affecting this service.",
-    "resolved_incident_message": "The issue has been resolved.",
-    "cachet_per_page_param": 50,
-    "groups_configuration": [
-        {
-            "status_page_group": "Web Services",
-            "status_page_components": [
-                "Web Server",
-                "Load Balancer"
-            ]
-        },
-        {
-            "status_page_group": "Database Services",
-            "status_page_components": [
-                "Database",
-                "Backend"
-            ]
-        }
-    ]
-}
-```
-
 **Configuration parameters:**
 - `status_page_group`: Name of the group that will be created on the status page
 - `status_page_components`: Array of visible component names that belong to this group
 
 Each visible component referenced in your Prometheus labels must be mapped to a group in this configuration. The `setup-components.py` script will use this mapping to automatically create groups and organize components during initialization.
-
-**Required Prometheus labels** for status page integration:
-
-Your Prometheus targets configuration must include these custom labels:
-
-```yaml
-prometheus_targets:
-  node_exporter:
-    - targets:
-        - '192.168.1.10:9100'
-        - '192.168.1.11:9100'
-      labels:
-        status_page_alert: true                    # NEW: Enable status page monitoring
-        status_page_component: 'Web Server'        # NEW: Visible component name(s)
-        status_page_critical_target: false         # NEW: Mark as critical target (optional)
-    
-    - targets:
-        - '192.168.1.20:9100'
-      labels:
-        status_page_alert: true
-        status_page_component: 'Database, Backend' # Multiple components supported
-        status_page_critical_target: true          # Critical target forces major outage
-```
-
-**New Label Definitions:**
-
-- **`status_page_alert`** (required): Set to `true` to enable monitoring for this target
-- **`status_page_component`** (required): Name(s) of visible component(s) affected by this target (comma-separated for multiple)
-- **`status_page_critical_target`** (optional): Set to `true` to mark target as critical. When a critical target fails, the entire visible component is set to major outage regardless of other targets' status. Default: `false`
-
-**Important**: Make sure all component names used in `status_page_component` labels are also defined in the `groups_configuration` section of `middleware/config.json`.
 
 ### 4. Local Development Configuration
 
@@ -199,7 +164,6 @@ The script will automatically:
 7. Run database migrations
 8. Create the admin user and generate the API token
 9. Automatically set up components using Prometheus/config.json if requested
-10. Verify the webhook endpoint
 
 At the end of the process, the Cachet status page and middleware will be fully operational.
 

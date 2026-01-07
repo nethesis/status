@@ -1,5 +1,4 @@
 {
-    "alerts_severity": "",
     "new_incident_name": "System %s is experiencing issues",
     "new_incident_message": "We are currently investigating an issue affecting this service. Updates will be provided as more information becomes available.",
     "resolved_incident_message": "The outage has been resolved and services have resumed their normal functionalities.",
@@ -7,22 +6,69 @@
     "cachet_per_page_param": 50,
     "groups_configuration": [
         {
-            "status_page_group": "Web Services",
+            "status_page_group": "NethVoice",
             "status_page_components": [
-                "Web Server"
+                "RPS Phone Provisioning Service",
+                "Legacy Mobile App Push Proxy",
+                "NethVoice Documentation"
             ]
         },
         {
-            "status_page_group": "Database Services",
+            "status_page_group": "NethSpot",
             "status_page_components": [
-                "Database"
+                "HotSpot UI",
+                "HotSpot RADIUS Server",
+                "HotSpot Manager",
+                "HotSpot Tasks"
             ]
         },
         {
-            "status_page_group": "Backend Services",
+            "status_page_group": "Nethesis Operation Center",
             "status_page_components": [
-                "Backend",
-                "API Services"
+                "my.nethesis.it",
+                "my.nethserver.com",
+                "Remote Backup Service",
+                "Remote Support Service (SOS)",
+                "Primary Database",
+                "SMTP Relay Server"
+            ]
+        },
+        {
+            "status_page_group": "NethServer",
+            "status_page_components": [
+                "NethServer Package Repositories Mirrors",
+                "NethServer Enterprise Repository",
+                "Mirror Monitor",
+                "NethServer Documentation",
+                "NethServer Wiki",
+                "NethServer Website",
+                "NethServer Forge",
+                "PhoneHome Service"
+            ]
+        },
+        {
+            "status_page_group": "NethSecurity",
+            "status_page_components": [
+                "NethSecurity Packages Repository",
+                "NethSecurity Documentation",
+                "NethSecurity Website"
+            ]
+        },
+        {
+            "status_page_group": "CyberSecurity Services",
+            "status_page_components": [
+                "Log Manager",
+                "Sandbox File Scanning",
+                "FlashStart DNS Filter",
+                "Blocklists Distribution Service"
+            ]
+        },
+        {
+            "status_page_group": "Web Sites",
+            "status_page_components": [
+                "Partner Forum",
+                "Community Forum",
+                "Nethesis Website"
             ]
         }
     ]
