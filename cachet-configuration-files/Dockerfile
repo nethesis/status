@@ -123,7 +123,7 @@ RUN php artisan session:table || true
 # Use a fixed name for the generated jobs migration, otherwise every build creates
 # a new one and migrate fails on existing installations ("jobs" already exists)
 RUN php artisan queue:table \
-    && mv database/migrations/*_create_jobs_table.php database/migrations/2026_01_08_080448_create_jobs_table.php
+    && mv database/migrations/*_create_jobs_table.php database/migrations/2025_12_23_141424_create_jobs_table.php
 
 # Fix permissions AFTER artisan commands - PHP-FPM runs as www-data
 RUN chmod -R 775 /var/www/html/storage \
