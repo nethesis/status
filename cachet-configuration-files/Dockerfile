@@ -1,5 +1,5 @@
 # Single-stage build for production Cachet deployment
-ARG PHP_VERSION=8.3
+ARG PHP_VERSION=8.3.36
 ARG CACHET_COMMIT=207a6d5a7c309fcdc4656a074869f0afa06d142c
 
 FROM docker.io/library/php:${PHP_VERSION}-fpm-alpine
