@@ -4,6 +4,9 @@ ARG CACHET_COMMIT=207a6d5a7c309fcdc4656a074869f0afa06d142c
 
 FROM docker.io/library/php:${PHP_VERSION}-fpm-alpine
 
+# ARGs declared before FROM are not visible inside the build stage
+ARG CACHET_COMMIT
+
 # Install system dependencies and composer
 RUN apk add --no-cache \
     composer \
@@ -117,7 +120,10 @@ RUN php artisan storage:link
 # Ensure migrations for database-backed drivers exist
 RUN php artisan cache:table || true
 RUN php artisan session:table || true
-RUN php artisan queue:table || true
+# Use a fixed name for the generated jobs migration, otherwise every build creates
+# a new one and migrate fails on existing installations ("jobs" already exists)
+RUN php artisan queue:table \
+    && mv database/migrations/*_create_jobs_table.php database/migrations/2026_01_08_080448_create_jobs_table.php
 
 # Fix permissions AFTER artisan commands - PHP-FPM runs as www-data
 RUN chmod -R 775 /var/www/html/storage \
